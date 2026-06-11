@@ -1,0 +1,255 @@
+[REQ GET] https://m.bunjang.co.kr/search/products?q=RTX%204070
+  headers: {"upgrade-insecure-requests":"1","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Safari/537.36","sec-ch-ua":"\"Chromium\";v=
+[RES 200] https://m.bunjang.co.kr/search/products?q=RTX%204070
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css
+[REQ GET] https://ssl.pstatic.net/adimg3.search/adpost/js/adpost_show_ads_v2.min.js
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://m.bunjang.co.kr/static/js/index.DZ9GePoA.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/search/products?q=RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
+[REQ GET] https://m.bunjang.co.kr/static/js/core-vendor.C6qrSgf2.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/search/products?q=RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
+[REQ GET] https://m.bunjang.co.kr/static/js/ui.D2unfuDg.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/search/products?q=RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
+[REQ GET] https://m.bunjang.co.kr/static/css/ui.DUSCkDYP.css
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/search/products?q=RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
+[REQ GET] https://m.bunjang.co.kr/static/css/index.C45uy1Fs.css
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/search/products?q=RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
+[RES 200] https://m.bunjang.co.kr/static/css/ui.DUSCkDYP.css
+[RES 200] https://m.bunjang.co.kr/static/css/index.C45uy1Fs.css
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css
+[RES 200] https://ssl.pstatic.net/adimg3.search/adpost/js/adpost_show_ads_v2.min.js
+[RES 200] https://m.bunjang.co.kr/static/js/index.DZ9GePoA.js
+[RES 200] https://m.bunjang.co.kr/static/js/ui.D2unfuDg.chunk.js
+[RES 200] https://m.bunjang.co.kr/static/js/core-vendor.C6qrSgf2.chunk.js
+[REQ GET] https://www.googletagmanager.com/gtag/js?id=G-EGFZWMCPWM
+[REQ GET] https://api.bunjang.co.kr/api/session/v1/session
+  headers: {"x-bun-context":"eyJzZXNzaW9uX2lkIjoiMTc4MDAxOTEyMS05UTNIcEIiLCJidWlkIjoiOWIyM0ZjLTE3ODAwMTkxMjEiLCJkZXZpY2VfdHlwZSI6InciLCJvcyI6IldpbmRvd3MiLCJvc1ZlcnNpb24iOiIxMC4wIn0=","sec-ch-ua-platform":"\"Wind
+[RES 200] https://api.bunjang.co.kr/api/session/v1/session
+[REQ GET] https://m.bunjang.co.kr/static/js/_q.route.PUXp26bN.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.
+[REQ GET] https://m.bunjang.co.kr/static/js/NaverPowerLinkAdItem.Cj5tV-pK.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.
+[REQ GET] https://m.bunjang.co.kr/static/css/NaverPowerLinkAdItem.ClMDKzCd.css
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/keywords/RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
+[REQ GET] https://m.bunjang.co.kr/static/js/search-loggings.D71ib4aL.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.
+[REQ GET] https://m.bunjang.co.kr/static/js/RichText.BZXWrphQ.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.
+[REQ GET] https://m.bunjang.co.kr/static/js/useProductsPagination.CsZ-Z340.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.
+[REQ GET] https://m.bunjang.co.kr/static/css/search-loggings.COddS-ZR.css
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/keywords/RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
+[REQ GET] https://m.bunjang.co.kr/static/js/RecentProductWidget.CIpHhI9N.chunk.js
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.
+[REQ GET] https://m.bunjang.co.kr/static/css/RecentProductWidget.DWcqiXKn.css
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/keywords/RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
+[REQ GET] https://m.bunjang.co.kr/static/css/_q.DTnzQGg6.css
+  headers: {"origin":"https://m.bunjang.co.kr","sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/keywords/RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
+[REQ GET] https://api.bunjang.co.kr/api/search/v8/pw/product/specs/keyword?q=RTX+4070
+  headers: {"x-bun-context":"eyJzZXNzaW9uX2lkIjoiMTc4MDAxOTEyMS05UTNIcEIiLCJidWlkIjoiOWIyM0ZjLTE3ODAwMTkxMjEiLCJkZXZpY2VfdHlwZSI6InciLCJvcyI6IldpbmRvd3MiLCJvc1ZlcnNpb24iOiIxMC4wIn0=","sec-ch-ua-platform":"\"Wind
+  ✅ JSON 응답: {"data":{"login":false}}
+[RES 200] https://m.bunjang.co.kr/static/css/NaverPowerLinkAdItem.ClMDKzCd.css
+[RES 200] https://m.bunjang.co.kr/static/js/NaverPowerLinkAdItem.Cj5tV-pK.chunk.js
+[RES 200] https://m.bunjang.co.kr/static/css/search-loggings.COddS-ZR.css
+[RES 200] https://m.bunjang.co.kr/static/css/_q.DTnzQGg6.css
+[RES 200] https://m.bunjang.co.kr/static/css/RecentProductWidget.DWcqiXKn.css
+[RES 200] https://m.bunjang.co.kr/static/js/_q.route.PUXp26bN.chunk.js
+[RES 200] https://m.bunjang.co.kr/static/js/RichText.BZXWrphQ.chunk.js
+[RES 200] https://m.bunjang.co.kr/static/js/RecentProductWidget.CIpHhI9N.chunk.js
+[RES 200] https://m.bunjang.co.kr/static/js/search-loggings.D71ib4aL.chunk.js
+[RES 200] https://m.bunjang.co.kr/static/js/useProductsPagination.CsZ-Z340.chunk.js
+[RES 200] https://api.bunjang.co.kr/api/search/v8/pw/product/specs/keyword?q=RTX+4070
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.86.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.90.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.91.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.89.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.88.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.84.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.87.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.85.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.81.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.80.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.83.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.79.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.69.woff2
+[REQ GET] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.82.woff2
+[REQ POST] https://api.bunjang.co.kr/api/log/v2/events
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ POST] https://api.bunjang.co.kr/api/log/v2/events
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://static.bunjang.co.kr/web/ui/logo-icon.svg
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://static.bunjang.co.kr/web/ui/logo-full-ko.svg
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://shopping-phinf.pstatic.net/main_5057674/50576741027.jpg?type=f300
+[REQ GET] https://shopping-phinf.pstatic.net/main_5588315/55883159589.jpg?type=f300
+[REQ GET] https://shopping-phinf.pstatic.net/main_5265699/52656998145.jpg?type=f300
+[REQ GET] https://shopping-phinf.pstatic.net/main_5399505/53995053591.2.jpg?type=f300
+[REQ GET] https://shopping-phinf.pstatic.net/main_8907343/89073430655.jpg?type=f300
+[REQ GET] https://shopping-phinf.pstatic.net/main_8882570/88825708415.jpg?type=f300
+[REQ GET] https://shopping-phinf.pstatic.net/main_5981889/59818894187.jpg?type=f300
+[REQ GET] https://m.bunjang.co.kr/static/media/isms-logo.DAFw3grU.webp
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/keywords/RTX%204070","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrom
+[REQ GET] https://api.bunjang.co.kr/api/mdms/v1/categories
+  headers: {"x-bun-context":"eyJzZXNzaW9uX2lkIjoiMTc4MDAxOTEyMS05UTNIcEIiLCJidWlkIjoiOWIyM0ZjLTE3ODAwMTkxMjEiLCJkZXZpY2VfdHlwZSI6InciLCJvcyI6IldpbmRvd3MiLCJvc1ZlcnNpb24iOiIxMC4wIn0=","sec-ch-ua-platform":"\"Wind
+[REQ GET] https://api.bunjang.co.kr/api/search/v8/product/spec/filter-detail?q=RTX+4070&policyKey=pw.product.keyword
+  headers: {"x-bun-context":"eyJzZXNzaW9uX2lkIjoiMTc4MDAxOTEyMS05UTNIcEIiLCJidWlkIjoiOWIyM0ZjLTE3ODAwMTkxMjEiLCJkZXZpY2VfdHlwZSI6InciLCJvcyI6IldpbmRvd3MiLCJvc1ZlcnNpb24iOiIxMC4wIn0=","sec-ch-ua-platform":"\"Wind
+[REQ GET] https://api.bunjang.co.kr/api/tas/v1/coupang-products?queryKeyword=RTX,4070&deviceType=m&adArea=SEARCH_BOTTOM&size=9
+  headers: {"x-bun-context":"eyJzZXNzaW9uX2lkIjoiMTc4MDAxOTEyMS05UTNIcEIiLCJidWlkIjoiOWIyM0ZjLTE3ODAwMTkxMjEiLCJkZXZpY2VfdHlwZSI6InciLCJvcyI6IldpbmRvd3MiLCJvc1ZlcnNpb24iOiIxMC4wIn0=","sec-ch-ua-platform":"\"Wind
+[REQ GET] https://media.bunjang.co.kr/product/410007776_1_1779758071_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410010986_1_1779758099_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/409284707_1_1779291032_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/406689885_1_1779928438_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/408999008_1_1779752905_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410158440_1_1779683388_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/408713384_1_1780007063_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410568633_1_1779880186_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/408892579_1_1779177508_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/397659342_1_1774579782_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410207670_1_1779698278_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/403878931_1_1779526663_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/400172659_1_1779290862_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410726108_1_1779951875_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410715755_1_1779936860_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410749646_1_1779948811_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/408606252_1_1779002173_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/386452825_1_1779074553_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/400339390_1_1775661243_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410567571_1_1779982682_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410617526_1_1779880699_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410549903_1_1779859776_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410540404_1_1779856418_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410553592_1_1779860978_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410553414_1_1779860919_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410551771_1_1779860381_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410542982_1_1779857319_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://media.bunjang.co.kr/product/410525775_1_1779851018_w480.jpg?crop=0
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[RES 200] https://www.googletagmanager.com/gtag/js?id=G-EGFZWMCPWM
+[REQ POST] https://api.bunjang.co.kr/api/log/v2/events
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ POST] https://api.bunjang.co.kr/api/log/v2/events
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ POST] https://api.bunjang.co.kr/api/log/v2/events
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ POST] https://api.bunjang.co.kr/api/log/v2/events
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[RES 200] https://m.bunjang.co.kr/static/media/isms-logo.DAFw3grU.webp
+  ✅ JSON 응답: {"data":{"searchSpec":{"policyKey":"pw.product.keyword","version":"v1","mandatoryFilters":[{"key":"q","values":["RTX 4070"]}],"additionalFilters":[],"uiBlocks":null,"uiBlockList":[{"id":"pwKeywordHeader","blockType":"productList.header.pwKeyword","visibility":{"conditionGroups":[{"include":["SEARCH_
+[RES 200] https://shopping-phinf.pstatic.net/main_5057674/50576741027.jpg?type=f300
+[RES 200] https://shopping-phinf.pstatic.net/main_5588315/55883159589.jpg?type=f300
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.86.woff2
+[RES 200] https://shopping-phinf.pstatic.net/main_5265699/52656998145.jpg?type=f300
+[RES 200] https://shopping-phinf.pstatic.net/main_5399505/53995053591.2.jpg?type=f300
+[RES 200] https://shopping-phinf.pstatic.net/main_8907343/89073430655.jpg?type=f300
+[RES 200] https://shopping-phinf.pstatic.net/main_8882570/88825708415.jpg?type=f300
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.90.woff2
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.91.woff2
+[RES 200] https://shopping-phinf.pstatic.net/main_5981889/59818894187.jpg?type=f300
+[RES 200] https://static.bunjang.co.kr/web/ui/logo-icon.svg
+[RES 200] https://static.bunjang.co.kr/web/ui/logo-full-ko.svg
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.89.woff2
+[RES 200] https://api.bunjang.co.kr/api/log/v2/events
+[RES 200] https://api.bunjang.co.kr/api/log/v2/events
+[RES 200] https://api.bunjang.co.kr/api/tas/v1/coupang-products?queryKeyword=RTX,4070&deviceType=m&adArea=SEARCH_BOTTOM&size=9
+[REQ GET] https://external-api.impression-neo.naver.com/api/v2/ads/search?channel=bunjangpc.ch6&device=w&query=RTX,4070&pageSize=9&url=https:%2F%2Fm.bunjang.co.kr
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[RES 200] https://api.bunjang.co.kr/api/log/v2/events
+[RES 200] https://api.bunjang.co.kr/api/log/v2/events
+[RES 200] https://api.bunjang.co.kr/api/log/v2/events
+[RES 200] https://api.bunjang.co.kr/api/log/v2/events
+[RES 200] https://api.bunjang.co.kr/api/mdms/v1/categories
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.87.woff2
+[REQ POST] https://www.google-analytics.com/g/collect?v=2&tid=G-EGFZWMCPWM&gtm=45je65r2v890424196za200zd890424196&_p=1780019121722&gcd=13l3l3l3l1l1&npa=0&dma=0&are=1&cid=23000705.1780019122&frm=0&pscdl=noapi&rcb=11&sr=1280x720&uaa=x86&uab=64&uafvl=Chromium%3B148.0.7778.96%7CHeadlessChrome%3B148.0.7778.96%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=Windows&uapv=19.0.0&uaw=0&ul=ko&_s=1&tag_exp=0~115938465~115938468~119034493&sid=1780019122&sct=1&seg=0&dl=https%3A%2F%2Fm.bunjang.co.kr%2Fkeywords%2FRTX%204070&dt=%EB%B2%88%EA%B0%9C%EC%9E%A5%ED%84%B0&en=page_view&_fv=1&_nsi=1&_ss=1&_ee=1&tfd=3379
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.84.woff2
+[RES 200] https://media.bunjang.co.kr/product/410007776_1_1779758071_w480.jpg?crop=0
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.88.woff2
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.81.woff2
+[RES 200] https://media.bunjang.co.kr/product/410010986_1_1779758099_w480.jpg?crop=0
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.85.woff2
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.80.woff2
+[RES 200] https://media.bunjang.co.kr/product/409284707_1_1779291032_w480.jpg?crop=0
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.83.woff2
+[RES 200] https://media.bunjang.co.kr/product/406689885_1_1779928438_w480.jpg?crop=0
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.79.woff2
+[RES 200] https://media.bunjang.co.kr/product/410158440_1_1779683388_w480.jpg?crop=0
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.69.woff2
+[RES 200] https://media.bunjang.co.kr/product/408999008_1_1779752905_w480.jpg?crop=0
+[RES 200] https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.82.woff2
+[RES 200] https://media.bunjang.co.kr/product/410568633_1_1779880186_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/408892579_1_1779177508_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/408713384_1_1780007063_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/397659342_1_1774579782_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410207670_1_1779698278_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/403878931_1_1779526663_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/400172659_1_1779290862_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410726108_1_1779951875_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/408606252_1_1779002173_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/386452825_1_1779074553_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410715755_1_1779936860_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/400339390_1_1775661243_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410617526_1_1779880699_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410567571_1_1779982682_w480.jpg?crop=0
+[RES 200] https://api.bunjang.co.kr/api/search/v8/product/spec/filter-detail?q=RTX+4070&policyKey=pw.product.keyword
+  ✅ JSON 응답: {"data":[]}
+  ✅ JSON 응답: {"data":[{"id":"310","name":"여성의류","displayName":"여성의류","isEnable":true,"seq":1,"imgUrl":"https://static.bunjang.co.kr/category_icons/2307/ic_category_women-clothes.png","numChild":9,"specs":[],"recProductImgUrl":"https://media.bunjang.co.kr/product/406389405_1_1778062749_w640.jpg","requiredSpec":[]
+[RES 200] https://media.bunjang.co.kr/product/410549903_1_1779859776_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410749646_1_1779948811_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410553592_1_1779860978_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410542982_1_1779857319_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410525775_1_1779851018_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410540404_1_1779856418_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410553414_1_1779860919_w480.jpg?crop=0
+[RES 200] https://media.bunjang.co.kr/product/410551771_1_1779860381_w480.jpg?crop=0
+  ✅ JSON 응답: {"data":{"policyKey":"pw.product.keyword","version":"v1","filterLayout":[{"id":"CATEGORY","uiType":"filter.category","valueIds":["category.depth1","category.depth2","category.depth3"],"rootValueId":"category.depth1","parameter":{"type":"SINGLE","key":"categoryId","defaultValue":null},"decoration":{"
+[RES 200] https://external-api.impression-neo.naver.com/api/v2/ads/search?channel=bunjangpc.ch6&device=w&query=RTX,4070&pageSize=9&url=https:%2F%2Fm.bunjang.co.kr
+[REQ GET] https://external-api.impression-neo.naver.com/api/v2/ads/search-jsonp?channel=bunjangpc.ch1&pageSize=5&query=RTX%2C4070&url=%2Fkeywords%2FRTX%25204070&callback=handle_naver_ads_response
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+  ✅ JSON 응답: {"message":"Done"}
+  ✅ JSON 응답: {"message":"Done"}
+  ✅ JSON 응답: {"message":"Done"}
+  ✅ JSON 응답: {"message":"Done"}
+  ✅ JSON 응답: {"message":"Done"}
+  ✅ JSON 응답: {"message":"Done"}
+  ✅ JSON 응답: {
+  "ads" : [ {
+    "clickUrl" : "https://ader.naver.com/v1/ckHlkeDcHQA4S8v3Q463uu38c4qjYLWOVyY-9seH37LenPk7N6vcN-R8eNUZfu-sZvWlHDNR98btgYMxOGtd9XwGOMOubMhUkQiiPJV4faiYKx5dElr7LlC61trCa2YFYl3qqYDx6QKrJ3oiuiS5TIEO5bJXz6k0jOBspaGPs4_sxBNmksDcH4eLjfBfXT1yXmoPRsi6vsBV6BMUQlUubh-_kNCVqTi4MqF54121WZ55vv1m
+[RES 204] https://www.google-analytics.com/g/collect?v=2&tid=G-EGFZWMCPWM&gtm=45je65r2v890424196za200zd890424196&_p=1780019121722&gcd=13l3l3l3l1l1&npa=0&dma=0&are=1&cid=23000705.1780019122&frm=0&pscdl=noapi&rcb=11&sr=1280x720&uaa=x86&uab=64&uafvl=Chromium%3B148.0.7778.96%7CHeadlessChrome%3B148.0.7778.96%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=Windows&uapv=19.0.0&uaw=0&ul=ko&_s=1&tag_exp=0~115938465~115938468~119034493&sid=1780019122&sct=1&seg=0&dl=https%3A%2F%2Fm.bunjang.co.kr%2Fkeywords%2FRTX%204070&dt=%EB%B2%88%EA%B0%9C%EC%9E%A5%ED%84%B0&en=page_view&_fv=1&_nsi=1&_ss=1&_ee=1&tfd=3379
+[RES 200] https://external-api.impression-neo.naver.com/api/v2/ads/search-jsonp?channel=bunjangpc.ch1&pageSize=5&query=RTX%2C4070&url=%2Fkeywords%2FRTX%25204070&callback=handle_naver_ads_response
+[REQ GET] https://searchad-phinf.pstatic.net/MjAyNTA0MjRfMjI5/MDAxNzQ1NDY4MDcxMDQz.hCmNDqvhx4N70ae5Z10ot1-zS78O-5mxHpLPLnngF_Ug.6dHMbw4_Z5EMO9Pvy1K57jbGt1toZzDCn5K--HRglakg.PNG/219431-547fc520-a6ac-4a23-a9e7-059c355a9f92.png
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://searchad-phinf.pstatic.net/MjAyNDA1MTZfMTQg/MDAxNzE1ODM5OTM2NDUz.7rnqMg6V3tJ4WqxFlWQLWF5KB8xqJYqK-2jbB6uHZuIg.GnA74tn10a-w82f-rEE1c6BI312O2gj0B46cJ4GCXuEg.JPEG/218089-51814c4c-dac1-4a2c-b7ef-275543b706c6.jpg
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[REQ GET] https://searchad-phinf.pstatic.net/MjAyMTA3MzBfMjg4/MDAxNjI3NjI3NDcyMDE4.MZOoeCjxelIwj5Css3GsrTyHS_V0tF-X05zOvbB4CWMg.WeaenPNO29EKVYfXS7bd0e_pyYcbmRgMBsriL_e7nPsg.JPEG/165494-bfb16bd3-3fee-4740-bba0-607b130e869a.jpg
+  headers: {"sec-ch-ua-platform":"\"Windows\"","referer":"https://m.bunjang.co.kr/","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Saf
+[RES 200] https://searchad-phinf.pstatic.net/MjAyNTA0MjRfMjI5/MDAxNzQ1NDY4MDcxMDQz.hCmNDqvhx4N70ae5Z10ot1-zS78O-5mxHpLPLnngF_Ug.6dHMbw4_Z5EMO9Pvy1K57jbGt1toZzDCn5K--HRglakg.PNG/219431-547fc520-a6ac-4a23-a9e7-059c355a9f92.png
+[RES 200] https://searchad-phinf.pstatic.net/MjAyNDA1MTZfMTQg/MDAxNzE1ODM5OTM2NDUz.7rnqMg6V3tJ4WqxFlWQLWF5KB8xqJYqK-2jbB6uHZuIg.GnA74tn10a-w82f-rEE1c6BI312O2gj0B46cJ4GCXuEg.JPEG/218089-51814c4c-dac1-4a2c-b7ef-275543b706c6.jpg
+[RES 200] https://searchad-phinf.pstatic.net/MjAyMTA3MzBfMjg4/MDAxNjI3NjI3NDcyMDE4.MZOoeCjxelIwj5Css3GsrTyHS_V0tF-X05zOvbB4CWMg.WeaenPNO29EKVYfXS7bd0e_pyYcbmRgMBsriL_e7nPsg.JPEG/165494-bfb16bd3-3fee-4740-bba0-607b130e869a.jpg

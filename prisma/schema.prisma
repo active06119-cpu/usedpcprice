@@ -1,0 +1,437 @@
+// ============================================================
+// schema.prisma — Used PC Fair-Price Estimation MVP
+// Database layer only. Consumed by app layer (Next.js).
+// Owner: DB agent. Do not edit UI or app logic here.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+/// Hardware category. Covers all single-part estimation flows.
+enum PartCategory {
+  GPU
+  CPU
+  RAM
+  SSD
+  HDD
+  MOTHERBOARD
+  PSU
+  CASE
+  COOLER
+  MONITOR
+  OTHER
+}
+
+/// Where a price snapshot came from.
+/// SEED = manually loaded during seeding; MANUAL = staff-entered.
+enum SnapshotSource {
+  DANAWA      // 다나와 — primary Korean price aggregator
+  JOONGNA     // 중고나라
+  DAANGN      // 당근마켓
+  BUNJANG     // 번개장터
+  NAVER_CAFE  // 네이버 카페 (직거래 게시판)
+  NAVER_SHOPPING // 네이버 쇼핑 API
+  BUYOUT      // 매입처 단가표 (월드메모리 등)
+  MANUAL      // Staff-entered one-off price
+  SEED        // Initial seed data
+  AI_ESTIMATED // AI 추정가 (analyze API 등)
+}
+
+/// Physical condition of a listed part.
+/// Nullable on snapshots where condition was not stated.
+enum PartCondition {
+  NEW
+  LIKE_NEW  // 개봉만 한
+  GOOD      // 사용감 적음
+  FAIR      // 사용감 있음
+  POOR      // 불량/파손 포함
+}
+
+/// Lifecycle of a batch import run.
+enum BatchStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// How the user submitted a listing.
+enum ListingInputType {
+  URL         // User pasted a marketplace URL
+  TEXT_PASTE  // User pasted raw listing body text
+  MANUAL      // User typed spec fields manually
+}
+
+/// Parsing state of a submitted listing.
+enum ParseStatus {
+  PENDING   // Queued, not yet processed
+  SUCCESS   // All parts extracted cleanly
+  PARTIAL   // Some parts extracted, some unmatched
+  FAILED    // Could not extract any parts
+}
+
+/// Which user flow triggered this valuation.
+enum ValuationType {
+  FULL_PC       // Seller: full system spec
+  SINGLE_PART   // Seller or buyer: one component
+  BUYER_CHECK   // Buyer: marketplace listing vs fair price
+}
+
+/// Category of pricing adjustment.
+enum AdjustmentType {
+  CONDITION     // Multiplier based on reported condition
+  AGE           // Depreciation based on release year
+  MARKET_TREND  // Seasonal or supply/demand delta
+  BUNDLE        // Discount applied to bundle listings
+  CUSTOM        // Catch-all for manual rules
+}
+
+enum MarketSaleStatus {
+  ACTIVE
+  SOLD
+  RESERVED
+  UNKNOWN
+}
+
+// ============================================================
+// CATALOG LAYER
+// ============================================================
+
+/// Normalized parts catalog. One row per distinct product SKU.
+/// This is the single source of truth for part identity.
+/// specJson is flexible — shape varies by category (see seed comments).
+model Part {
+  id          String      @id @default(cuid())
+  category    PartCategory
+  brandName   String      // e.g. "NVIDIA", "AMD", "Samsung"
+  modelName   String      // e.g. "RTX 4070", "870 EVO 1TB"
+  /// Denormalized full display name for quick UI rendering.
+  /// App layer should use this directly — avoids concatenation on every render.
+  fullName    String      // e.g. "NVIDIA GeForce RTX 4070"
+  /// Flexible per-category spec bag. Do NOT query inside this in v1.
+  /// Example GPU: { "vram_gb": 12, "tdp_w": 200, "interface": "PCIe 4.0" }
+  /// Example CPU: { "cores": 8, "threads": 16, "socket": "AM5", "tdp_w": 65 }
+  /// Example RAM: { "capacity_gb": 16, "speed_mhz": 3200, "type": "DDR4" }
+  specJson    Json?
+  /// Year of original release. Used by age-based AdjustmentRule logic.
+  releaseYear Int?
+  /// Korean MSRP at launch in KRW. Nullable — not always known.
+  msrpKrw     Int?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  aliases        PartAlias[]
+  snapshots      PriceSnapshot[]
+  listingMatches ListingPartMatch[]
+  valuationItems ValuationItem[]
+
+  @@unique([category, brandName, modelName])
+  @@index([category, isActive])
+  @@index([fullName])
+  @@map("parts")
+}
+
+/// Alternative names, abbreviations, and Korean equivalents for parts.
+/// Used by the app layer's part-matching logic during listing extraction.
+/// Seeded with common Korean marketplace shorthand (e.g. "4070", "지포스4070").
+model PartAlias {
+  id        String   @id @default(cuid())
+  partId    String
+  /// The alias string itself. Lowercase-normalized at write time by app layer.
+  alias     String
+  /// Optional — where this alias originated ("seed", "user-feedback", "staff").
+  source    String?
+  createdAt DateTime @default(now())
+
+  part Part @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([partId, alias])
+  @@index([alias])        // Hot path: alias lookup during listing parsing
+  @@map("part_aliases")
+}
+
+// ============================================================
+// MARKET DATA LAYER
+// ============================================================
+
+/// Tracks one batch import run (twice daily by cron).
+/// Provides auditability and lets the app skip stale data on failure.
+model ImportBatch {
+  id          String      @id @default(cuid())
+  source      SnapshotSource
+  status      BatchStatus @default(PENDING)
+  startedAt   DateTime?
+  completedAt DateTime?
+  /// How many snapshot rows were inserted in this run.
+  recordCount Int?
+  /// Last error message if status = FAILED. Nullable on success.
+  errorLog    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  snapshots PriceSnapshot[]
+
+  @@index([source, status])
+  @@index([createdAt])
+  @@map("import_batches")
+}
+
+/// One observed price for one part from one source.
+/// Raw text is always preserved so records can be reprocessed if parsing logic improves.
+/// This is an append-only table — never update rows, only insert.
+model PriceSnapshot {
+  id         String         @id @default(cuid())
+  partId     String
+  /// Nullable — seed data and manual entries have no batch.
+  batchId    String?
+  sourceType SnapshotSource
+  /// Original listing URL. Nullable for manual/seed rows.
+  sourceUrl  String?
+  priceKrw   Int            // Asking or sold price in KRW
+  /// Physical condition as reported in the source listing. Nullable if not stated.
+  condition  PartCondition?
+  /// Full raw text of the source listing. Always preserve — enables reprocessing.
+  rawText    String?
+  /// When the price was captured (not necessarily when this row was created).
+  capturedAt DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+
+  part  Part         @relation(fields: [partId], references: [id])
+  batch ImportBatch? @relation(fields: [batchId], references: [id])
+
+  /// Composite index — primary query pattern: "recent snapshots for part X"
+  @@index([partId, capturedAt(sort: Desc)])
+  @@index([batchId])
+  @@index([capturedAt(sort: Desc)])
+  @@map("price_snapshots")
+}
+
+// ============================================================
+// USER INPUT LAYER
+// ============================================================
+
+/// A raw user-submitted marketplace listing.
+/// rawText is always stored even if parsing fails — supports reprocessing.
+/// One Listing can trigger at most one ValuationRun (buyer flow).
+model Listing {
+  id          String          @id @default(cuid())
+  inputType   ListingInputType
+  /// Full raw text as submitted by the user. Always store — never truncate.
+  rawText     String?
+  /// Source URL if inputType = URL. Nullable otherwise.
+  sourceUrl   String?
+  parseStatus ParseStatus     @default(PENDING)
+  /// Error message if parseStatus = FAILED or PARTIAL.
+  parseError  String?
+  /// When parsing completed. Null until processing is done.
+  parsedAt    DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  partMatches  ListingPartMatch[]
+  valuationRun ValuationRun?
+
+  @@index([parseStatus])
+  @@index([createdAt(sort: Desc)])
+  @@map("listings")
+}
+
+/// A part extracted (or attempted to extract) from a Listing.
+/// partId is nullable — the app may extract a part name it cannot match to catalog.
+/// Unmatched rows (partId = null) can be reprocessed after catalog expands.
+model ListingPartMatch {
+  id            String  @id @default(cuid())
+  listingId     String
+  /// Null if no catalog Part could be matched to this extracted text.
+  partId        String?
+  /// The raw substring pulled from the listing (e.g. "RTX 4070 12G").
+  rawPartText   String
+  /// Match confidence 0.0–1.0. Null for exact alias matches (confidence = 1.0 implied).
+  confidence    Float?
+  /// How the match was made: "alias_exact", "alias_fuzzy", "llm", "manual", null if unmatched.
+  matchMethod   String?
+  createdAt     DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  part    Part?   @relation(fields: [partId], references: [id])
+
+  @@index([listingId])
+  @@index([partId])
+  @@map("listing_part_matches")
+}
+
+// ============================================================
+// VALUATION LAYER
+// ============================================================
+
+/// One complete price estimation session.
+/// Covers all three flows: full PC, single part, buyer check.
+/// listingId is set for buyer flow; inputSpecJson is set for seller/manual flow.
+model ValuationRun {
+  id             String       @id @default(cuid())
+  runType        ValuationType
+  /// Foreign key to Listing — only set when runType = BUYER_CHECK.
+  listingId      String?      @unique
+  /// Raw spec payload when user entered parts manually (seller/single-part flow).
+  /// Null for buyer flow (parts come from ListingPartMatch instead).
+  inputSpecJson  Json?
+  /// The price the buyer saw in the listing. Null for seller flows.
+  askingPriceKrw Int?
+  /// Aggregated fair price range across all ValuationItems.
+  /// Null until calculation completes.
+  totalFairLow   Int?
+  totalFairMid   Int?
+  totalFairHigh  Int?
+  /// Human-readable verdict computed by app layer.
+  /// e.g. "GOOD_DEAL", "FAIR", "SLIGHTLY_OVERPRICED", "OVERPRICED"
+  verdict        String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  source  Listing?      @relation(fields: [listingId], references: [id])
+  items   ValuationItem[]
+
+  @@index([runType])
+  @@index([createdAt(sort: Desc)])
+  @@map("valuation_runs")
+}
+
+/// One part's price estimate within a ValuationRun.
+/// partId nullable — can estimate even for unmatched parts using rawPartLabel.
+/// adjustmentsApplied stores the rule IDs and their effects for full auditability.
+model ValuationItem {
+  id              String  @id @default(cuid())
+  valuationRunId  String
+  /// Null if the part could not be matched to catalog.
+  partId          String?
+  /// What the user typed or what was extracted (display fallback when partId is null).
+  rawPartLabel    String?
+  /// Price range in KRW after adjustments.
+  fairLowKrw      Int?
+  fairMidKrw      Int?
+  fairHighKrw     Int?
+  /// Snapshot of which adjustments were applied and their effects.
+  /// Array of { ruleId, ruleName, multiplier, flatOffset, resultDelta }.
+  adjustmentsApplied Json?
+  /// IDs of the PriceSnapshot rows used as input for this estimate.
+  /// Stored as a plain array for auditability — no join table needed in v1.
+  snapshotIds     String[]
+  createdAt       DateTime @default(now())
+
+  valuationRun ValuationRun @relation(fields: [valuationRunId], references: [id], onDelete: Cascade)
+  part         Part?        @relation(fields: [partId], references: [id])
+
+  @@index([valuationRunId])
+  @@index([partId])
+  @@map("valuation_items")
+}
+
+// ============================================================
+// RULES LAYER
+// ============================================================
+
+/// Pricing adjustment rules applied during valuation.
+/// Evaluated in ascending priority order.
+/// category = null means the rule applies to all categories.
+/// conditionKey + conditionValue form a simple predicate (e.g. condition = "POOR").
+model AdjustmentRule {
+  id             String          @id @default(cuid())
+  name           String          @unique
+  /// Which part category this rule applies to. Null = all categories.
+  category       PartCategory?
+  ruleType       AdjustmentType
+  /// The field being evaluated (e.g. "condition", "releaseYear").
+  conditionKey   String?
+  /// The value being matched (e.g. "POOR", "2020").
+  conditionValue String?
+  /// Multiplicative factor (e.g. 0.7 = 30% discount). Applied before flatOffsetKrw.
+  multiplier     Float?
+  /// Flat KRW offset applied after multiplier. Negative = discount.
+  flatOffsetKrw  Int?
+  /// Lower number = evaluated first. Use 0–100 range.
+  priority       Int             @default(50)
+  isActive       Boolean         @default(true)
+  description    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([isActive, priority])
+  @@index([category, ruleType])
+  @@map("adjustment_rules")
+}
+
+model ValuationResult {
+  id        String   @id
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@map("valuation_results")
+}
+
+model MarketListing {
+  id             String        @id @default(cuid())
+  title          String
+  description    String
+  priceKrw       Int
+  condition      PartCondition
+  location       String?
+  contact        String
+  isActive       Boolean       @default(true)
+  isFairVerified Boolean       @default(false)
+  fairPriceMid   Int?
+  valuationRunId String?
+  viewCount      Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("market_listings")
+}
+
+model PartsPrice {
+  id          String           @id @default(cuid())
+  sourceUrl   String
+  title       String
+  description String
+  rawText     String
+  listedAt    DateTime?
+  saleStatus  MarketSaleStatus @default(UNKNOWN)
+  category    PartCategory
+  name        String
+  priceKrw    Int?
+  condition   PartCondition?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([sourceUrl])
+  @@index([createdAt(sort: Desc)])
+  @@map("parts_price")
+}
+
+enum ReportPriceReason {
+  too_high
+  too_low
+}
+
+model ReportedPrice {
+  id            String            @id @default(cuid())
+  partName      String
+  reportedPrice Int
+  reason        ReportPriceReason
+  createdAt     DateTime          @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@map("report_prices")
+}

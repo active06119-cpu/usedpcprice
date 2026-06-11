@@ -1,0 +1,29 @@
+가격 포함 요소 수: 64
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "7,770,000원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "7,000,000원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "2,750,000원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "1,250,000원"
+  <span class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "1,845,200 원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "580,000원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "4,500,000원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "1,340,000원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "1,920,000원"
+  <p class="Typography_typography__1wr8iu13 Typography_typography_variant_L3__1wr8iu1p" style="--colorVariants__1wr8iu10: #191919; --lineHeightVariants__1wr8iu11: undefined;">
+    텍스트: "1,980,000원"
+
+data-* 속성 있는 li/article/div:
+  <div class="Box__7nn0kn17 Box_boxRecipe_boxSizing_borderBox__7nn0kn22 bun-ui-choice-chip-item" data-value="2000000,2500000">
+  <div class="Box__7nn0kn17 Box_boxRecipe_boxSizing_borderBox__7nn0kn22 bun-ui-choice-chip-item" data-value="2500000,3000000">
+  <div class="Box__7nn0kn17 Box_boxRecipe_boxSizing_borderBox__7nn0kn22 bun-ui-choice-chip-item" data-value="3000000,3500000">
+
+__NEXT_DATA__:
+없음

@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# 중고 컴퓨터 시세 계산기 MVP
 
-## Getting Started
+한국어 기반 중고 데스크탑/부품 공정가 추정 앱입니다.
 
-First, run the development server:
+## 기술 스택
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- 앱: Next.js (App Router) + TypeScript + Tailwind + shadcn 스타일 UI
+- DB 엔진: PostgreSQL
+- ORM: Prisma
+- 호스팅 DB: Supabase Postgres
+
+## 환경 변수
+
+`.env` 파일에 아래 값을 설정하세요.
+
+```env
+DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require&pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 로컬 실행
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. 의존성 설치
+   - `npm install`
+2. Prisma 검증/클라이언트 생성
+   - `npm run prisma:validate`
+   - `npm run prisma:generate`
+3. 마이그레이션 실행
+   - `npm run prisma:migrate -- --name init`
+4. 시드 데이터 입력
+   - `npm run prisma:seed`
+5. 개발 서버 실행
+   - `npm run dev`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 주요 스크립트
 
-## Learn More
+- `npm run prisma:validate`
+- `npm run prisma:generate`
+- `npm run prisma:migrate`
+- `npm run prisma:seed`
+- `npm run import:batch`
+- `npm run import:price-profile`
 
-To learn more about Next.js, take a look at the following resources:
+## 수집기 환경 변수
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`scripts/import` 배치 수집기를 정상 동작시키려면 아래 환경변수가 필요합니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+NAVER_CLIENT_ID="your_naver_openapi_client_id"
+NAVER_CLIENT_SECRET="your_naver_openapi_client_secret"
+```
 
-## Deploy on Vercel
+Playwright 기반 수집기(다나와/당근)를 처음 실행하기 전에:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx playwright install chromium
+```

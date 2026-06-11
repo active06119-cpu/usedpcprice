@@ -1,0 +1,287 @@
+﻿Database Layer — Design Document
+Used PC Fair-Price Estimation MVP (Korean-first)
+Scope: This document covers the database layer only. The app layer (UI, API routes, valuation logic) is developed separately by another agent. Do not modify schema.prisma without coordinating on this boundary.
+
+
+________________
+
+
+4. Indexes & Constraints — Rationale
+Hot-path indexes (will be hit on every request)
+Index
+	Table
+	Reason
+	[partId, capturedAt DESC]
+	price_snapshots
+	Primary query: "N most recent prices for part X"
+	[alias]
+	part_aliases
+	Lookup during every listing parse
+	[category, isActive]
+	parts
+	Part picker filter
+	[listingId]
+	listing_part_matches
+	Load all parts for a listing
+	[valuationRunId]
+	valuation_items
+	Load all items for a run
+	Warm-path indexes (admin/background)
+Index
+	Table
+	Reason
+	[parseStatus]
+	listings
+	Queue drain — find PENDING listings
+	[source, status]
+	import_batches
+	Batch monitor
+	[isActive, priority]
+	adjustment_rules
+	Loaded fresh at valuation time
+	[batchId]
+	price_snapshots
+	Batch audit/rollback
+	Constraints
+* parts has a composite unique on (category, brandName, modelName) — prevents duplicate catalog entries.
+* part_aliases has a composite unique on (partId, alias) — prevents duplicate aliases per part.
+* adjustment_rules.name is unique — prevents accidental duplicate rule creation.
+* valuation_runs.listingId is unique — one listing produces exactly one valuation.
+* All foreign keys use onDelete: Cascade where appropriate (aliases → part, items → run).
+
+
+________________
+
+
+5. Seed Data Strategy
+Phase 1 — seed.ts (delivered)
+* ~35 GPU/CPU parts (top volume Korean used-market SKUs)
+* ~80 part aliases (Korean shorthand, English variants)
+* ~35 baseline price snapshots (manually researched from 중고나라/다나와 circa 2025)
+* 9 core adjustment rules (condition + age + bundle)
+* Creates one ImportBatch row with source = SEED
+Phase 2 — manual expansion before launch
+Before beta, seed.ts should be expanded to cover:
+
+
+* RAM: DDR4 3200/3600 16GB/32GB kits (Samsung, SK Hynix, G.Skill, Corsair)
+* SSD: Samsung 870/980 PRO, WD Black SN850, SK Hynix P41 (250GB/500GB/1TB/2TB)
+* PSU: Corsair RM750/850, Seasonic Focus 750/850, be quiet! Straight Power
+* Motherboard: Z790/B650/X570/B550 boards (ASUS, MSI, Gigabyte top SKUs)
+* ~100 additional aliases covering Korean naming conventions
+Phase 3 — live imports
+When scripts/import/batch-runner.ts importers are wired up:
+
+
+1. Run twice daily via cron (09:00 and 21:00 KST)
+2. Each run creates one ImportBatch row per source
+3. Snapshots accumulate — no deletion, ever (append-only table)
+4. App layer uses the 60-day rolling window by default
+
+
+________________
+
+
+6. Safe Migration Plan
+Initial migration
+# Set DATABASE_URL in .env
+
+
+npx prisma migrate dev --name init
+
+
+npx prisma db seed
+
+
+The init migration creates all tables, enums, and indexes in one shot. No data exists beforehand — no risk.
+Adding new parts (no migration needed)
+New GPU/CPU/RAM rows go directly into seed.ts or a separate seed script. Re-run npx prisma db seed (all inserts use upsert or skipDuplicates: true).
+Future schema changes — safe order
+1. Adding a nullable column: always safe. Add with ? in Prisma, deploy, then populate.
+2. Adding a new enum value: safe in PostgreSQL — add the value, then run migrate dev.
+3. Adding a new table: safe at any time. No blocking changes to existing tables.
+4. Making a nullable column required: DANGER — must backfill nulls first.
+5. Renaming a column: two-step — add new, deploy, backfill, drop old. Never single-step rename.
+6. Changing a column type: requires explicit migration SQL. Do not let Prisma auto-generate.
+Migration file discipline
+* One logical change per migration file.
+* Never edit a migration file after it has been run against any environment.
+* Name migrations descriptively: add_monitor_category, add_ram_ssd_parts, add_user_sessions.
+
+
+________________
+
+
+7. Example Queries (see scripts/queries/example-queries.ts)
+Query
+	Function
+	Used by
+	Fair price range for a part
+	getFairPriceRange
+	Seller/single-part flow
+	Recent snapshots
+	getRecentSnapshots
+	Price history view
+	Part lookup by alias
+	findPartByAlias
+	Listing parser
+	Valuation history
+	getValuationHistory
+	Dashboard
+	Valuation detail
+	getValuationDetail
+	Result page
+	Listing extracted parts
+	getListingParts
+	Buyer result view
+	Active adjustment rules
+	getActiveAdjustmentRules
+	Valuation engine
+	Part search
+	searchParts
+	Seller spec entry
+	Unmatched listing parts
+	getUnmatchedListingParts
+	Ops/admin backlog
+	
+
+________________
+
+
+8. v1 vs v2 Separation
+v1 — delivered in this layer
+Everything in schema.prisma. The schema is intentionally complete enough to not require breaking changes through launch.
+v2 — explicitly deferred
+These are described here so the app layer does not make decisions that conflict with them.
+
+
+Feature
+	Why deferred
+	Schema impact
+	User accounts
+	Anonymous MVP first
+	Add User model, foreign keys to ValuationRun and Listing
+	Full-text search on parts
+	Alias lookup covers MVP
+	Add PostgreSQL tsvector column to parts, GIN index
+	Part condition in specJson querying
+	JSON column for flexibility in v1
+	Migrate typed spec fields to dedicated columns per category, or add typed models per PartCategory
+	Listing feedback / correction
+	No feedback loop in MVP
+	Add ListingPartMatchFeedback table
+	Price trend analytics
+	No trend display in MVP
+	Add materialized view or aggregation table over price_snapshots
+	Marketplace price alerts
+	Post-MVP feature
+	Add PriceAlert table, websocket or email delivery
+	Affiliate/external link tracking
+	Revenue feature
+	Add sourceUrl click tracking table
+	Multi-tenant / operator accounts
+	B2B later
+	Tenant isolation via row-level security
+	Listing URL deduplication
+	Low priority in MVP
+	Add unique index on listings.sourceUrl after cleanup
+	
+
+________________
+
+
+Folder Structure
+your-project/
+
+
+├── prisma/
+
+
+│   ├── schema.prisma        ← Single source of truth for DB schema
+
+
+│   ├── seed.ts              ← Seed all baseline data
+
+
+│   └── migrations/
+
+
+│       └── 20250101000000_init/
+
+
+│           └── migration.sql
+
+
+│
+
+
+└── scripts/
+
+
+    ├── import/
+
+
+    │   ├── batch-runner.ts  ← Cron entry point (twice daily)
+
+
+    │   ├── danawa-importer.ts    ← (stub → build later)
+
+
+    │   ├── joongna-importer.ts   ← (stub → build later)
+
+
+    │   └── bunjang-importer.ts   ← (stub → build later)
+
+
+    │
+
+
+    ├── queries/
+
+
+    │   └── example-queries.ts   ← Reference patterns for app layer
+
+
+    │
+
+
+    └── seed/
+
+
+        ├── gpu-parts.ts     ← (optional split if seed.ts grows large)
+
+
+        ├── cpu-parts.ts
+
+
+        ├── ram-parts.ts
+
+
+        └── adjustment-rules.ts
+
+
+________________
+
+
+Integration Notes for App Layer (Cursor Agent)
+Prisma client usage
+// lib/prisma.ts — singleton pattern for Next.js
+
+
+import { PrismaClient } from '@prisma/client'
+
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+Key behavioral contracts the app layer must respect
+1. rawText on Listing must always be stored — even if the app will immediately process it. This enables reprocessing if extraction logic improves.
+2. alias values must be lowercased before insert — the findPartByAlias query lowercases input before matching; uppercase aliases will never match.
+3. ValuationRun.verdict is set by app logic, not the DB — the DB stores it, the app computes it. The field is a plain String? intentionally.
+4. ValuationItem.snapshotIds stores the array of snapshot IDs used — copy this array from your valuation engine output exactly. Enables full audit of how a price was derived.
+5. AdjustmentRule is loaded fresh per valuation — do not cache it in memory across requests. Rules can change.
+6. Price snapshots are never deleted or updated — treat price_snapshots as append-only. If a batch has bad data, mark its ImportBatch as FAILED and filter by batchId to exclude it.
