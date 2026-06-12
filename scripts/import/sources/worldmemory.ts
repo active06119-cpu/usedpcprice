@@ -25,6 +25,8 @@ const CATEGORY_BY_CTGRY: Record<string, string> = {
   "4166": "PSU",
 };
 
+type MatchMethod = "pattern" | "alias_exact" | "alias_partial" | "unmatched" | "auto-created";
+
 export interface WorldmemoryImportResult {
   inserted: number;
   skipped: number;
@@ -280,7 +282,7 @@ export async function runWorldmemoryBuyoutImport(): Promise<WorldmemoryImportRes
       const match = await matchProductToPart(matchName, categoryHint);
 
       let partId = match.partId;
-      let matchMethod = match.method;
+      let matchMethod: MatchMethod = match.method;
       let matchConfidence = match.confidence;
 
       if (!partId) {
