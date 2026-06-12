@@ -53,7 +53,8 @@ function isSanePriceForCategory(priceKrw: number, category: string): boolean {
     MOTHERBOARD: [20_000, 1_500_000],
     PSU: [15_000, 600_000],
   };
-  const [min, max] = (limits as Record<string, [number, number]>)[category] ?? [1_000, 10_000_000];
+  const range = (limits as Record<string, number[]>)[category] ?? [1_000, 10_000_000];
+  const [min, max] = [range[0], range[1]];
   return priceKrw >= min && priceKrw <= max;
 }
 
