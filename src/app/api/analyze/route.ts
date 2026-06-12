@@ -668,7 +668,7 @@ async function crossValidatePartPrice(
 
   if (part.partId) {
     const buyout = await getBuyoutPrice(part.partId);
-    if (buyout?.priceKrw && updated.usedMid < buyout.priceKrw) {
+    if (buyout?.priceKrw && updated.usedMid != null && updated.usedMid < buyout.priceKrw) {
       updated = {
         ...updated,
         usedMid: Math.round(buyout.priceKrw * 1.2),
@@ -681,9 +681,10 @@ async function crossValidatePartPrice(
   }
 
   if (
-    updated.newPrice &&
+    updated.newPrice != null &&
     updated.newPrice > 0 &&
     updated.priceSource !== "new" &&
+    updated.usedMid != null &&
     updated.usedMid > updated.newPrice * 0.92
   ) {
     warnings.push(`${updated.partName}: 신품가와 차이가 거의 없습니다`);

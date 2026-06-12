@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ReportPriceReason } from "@prisma/client";
 
 import { guardAdminRequest } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
+type ReportPriceReason = "too_high" | "too_low" | "wrong_part" | "other";
 
 function parseReason(raw: unknown): ReportPriceReason | null {
   if (raw === "too_high" || raw === "too_low") return raw;
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
       data: {
         partName,
         reportedPrice: Math.round(reportedPrice),
-        reason,
+        reason: reason as any,
       },
     });
 
