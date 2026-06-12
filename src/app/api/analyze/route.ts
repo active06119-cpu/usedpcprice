@@ -680,6 +680,13 @@ async function crossValidatePartPrice(
     }
   }
 
+  if (updated.usedMid && updated.newPrice && updated.usedMid > updated.newPrice) {
+    updated = {
+      ...updated,
+      usedMid: Math.round(updated.newPrice * 0.88),
+    };
+  }
+
   if (
     updated.newPrice != null &&
     updated.newPrice > 0 &&
