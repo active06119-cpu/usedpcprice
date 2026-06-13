@@ -13,8 +13,11 @@ import {
 } from "@/lib/engine/pricing";
 import {
   estimateGpuUsedPrice,
+  estimateCpuUsedPrice,
   findGpuReferenceNewPrice,
+  findCpuReferenceNewPrice,
   getGpuReferencePrice,
+  getCpuReferencePrice,
 } from "@/lib/engine/gpu-reference-prices";
 import { validateAndCleanPrices } from "@/lib/engine/price-validator";
 
@@ -414,7 +417,41 @@ async function resolveGpuReferenceFormulaPrice(
   };
 }
 
+async function resolveCpuReferenceFormulaPrice(
+  part: AnalyzedPart,
+): Promise<{
+  usedLow: number;
+  usedMid: number;
+  usedHigh: number;
+  newPrice: number;
+} | null> {
+  const releaseYear =
+    (part.partId
+      ? await resolveReleaseYear(part.partId, part.partName, part.category)
+      : inferReleaseYearFromName(part.partName, part.category)) ?? 2020;
+
+  const estimate = estimateCpuUsedPrice(
+    part.partName,
+    releaseYear,
+    toGpuEstimateCondition(part.condition),
+  );
+  if (!estimate) return null;
+  if (!isSanePriceForCategory(estimate.mid, "CPU")) return null;
+  if (!shouldPersistUsedPrice(estimate.mid, part.partName, "CPU")) return null;
+
+  const newPrice = getCpuReferencePrice(part.partName);
+  if (!newPrice) return null;
+
+  return {
+    usedLow: estimate.low,
+    usedMid: estimate.mid,
+    usedHigh: estimate.high,
+    newPrice,
+  };
+}
+
 const GPU_NEW_PRICE_REFERENCE_MIN = 200_000;
+const CPU_NEW_PRICE_REFERENCE_MIN = 100_000;
 
 function applyGpuReferenceNewPrice(
   partName: string,
@@ -424,6 +461,28 @@ function applyGpuReferenceNewPrice(
   if (category !== "GPU") return dbPrice;
   if (dbPrice !== null && dbPrice >= GPU_NEW_PRICE_REFERENCE_MIN) return dbPrice;
   return findGpuReferenceNewPrice(partName) ?? dbPrice;
+}
+
+function applyCpuReferenceNewPrice(
+  partName: string,
+  category: string,
+  dbPrice: number | null,
+): number | null {
+  if (category !== "CPU") return dbPrice;
+  if (dbPrice !== null && dbPrice >= CPU_NEW_PRICE_REFERENCE_MIN) return dbPrice;
+  return findCpuReferenceNewPrice(partName) ?? dbPrice;
+}
+
+function applyReferenceNewPrice(
+  partName: string,
+  category: string,
+  dbPrice: number | null,
+): number | null {
+  return applyCpuReferenceNewPrice(
+    partName,
+    category,
+    applyGpuReferenceNewPrice(partName, category, dbPrice),
+  );
 }
 
 async function getNewPrice(partId: string) {
@@ -541,7 +600,7 @@ async function resolveNewProductPriceFromDb(
     )
     .sort((a, b) => a - b);
 
-  const price = applyGpuReferenceNewPrice(
+  const price = applyReferenceNewPrice(
     partName,
     category,
     prices.length > 0 ? prices[0] : null,
@@ -593,7 +652,7 @@ async function resolveUsedPriceFromDb(
         isValidNewPrice(price, partName, category) && isSanePriceForCategory(price, category),
     )
     .sort((a, b) => a - b);
-  const newPrice = applyGpuReferenceNewPrice(
+  const newPrice = applyReferenceNewPrice(
     partName,
     category,
     newPrices.length > 0 ? newPrices[0] : null,
@@ -733,6 +792,10 @@ type ClaudeValidationResult = {
 async function resolveReferenceFormulaMid(part: AnalyzedPart): Promise<number | null> {
   if (part.category === "GPU") {
     const formula = await resolveGpuReferenceFormulaPrice(part);
+    return formula?.usedMid ?? null;
+  }
+  if (part.category === "CPU") {
+    const formula = await resolveCpuReferenceFormulaPrice(part);
     return formula?.usedMid ?? null;
   }
   if (!part.partId) return null;
@@ -1760,6 +1823,25 @@ async function calculateResult(
 
     if (part.category === "GPU") {
       const formula = await resolveGpuReferenceFormulaPrice(part);
+      if (!formula) continue;
+
+      resolvedParts[i] = attachPriceSource(
+        {
+          ...part,
+          approximated: true,
+          usedLow: formula.usedLow,
+          usedMid: formula.usedMid,
+          usedHigh: formula.usedHigh,
+          newPrice: formula.newPrice,
+          sampleSize: 0,
+        },
+        "formula",
+      );
+      continue;
+    }
+
+    if (part.category === "CPU") {
+      const formula = await resolveCpuReferenceFormulaPrice(part);
       if (!formula) continue;
 
       resolvedParts[i] = attachPriceSource(
