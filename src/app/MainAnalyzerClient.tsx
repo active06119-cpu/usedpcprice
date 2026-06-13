@@ -167,6 +167,12 @@ type PriceGaugeModel = {
   markerTone: "cheap" | "fair" | "expensive";
 };
 
+const GAUGE_ZONE_COLOR = {
+  cheap: "#1D9E75",
+  fair: "#EF9F27",
+  expensive: "#D85A30",
+} as const;
+
 const MARKER_TONE_STYLE = {
   cheap: {
     dot: "bg-green-500",
@@ -248,16 +254,18 @@ function PriceRangeGauge({
 
         <div className="relative h-3 overflow-hidden rounded-full">
           <div className="absolute inset-0 flex">
-            <div className="h-full bg-green-500" style={{ width: `${gauge.lowPct}%` }} />
             <div
-              className="h-full bg-green-200"
-              style={{ width: `${Math.max(0, gauge.midPct - gauge.lowPct)}%` }}
+              className="h-full"
+              style={{ width: `${gauge.lowPct}%`, backgroundColor: GAUGE_ZONE_COLOR.cheap }}
             />
             <div
-              className="h-full bg-amber-200"
-              style={{ width: `${Math.max(0, gauge.highPct - gauge.midPct)}%` }}
+              className="h-full"
+              style={{
+                width: `${Math.max(0, gauge.highPct - gauge.lowPct)}%`,
+                backgroundColor: GAUGE_ZONE_COLOR.fair,
+              }}
             />
-            <div className="h-full flex-1 bg-red-200" />
+            <div className="h-full flex-1" style={{ backgroundColor: GAUGE_ZONE_COLOR.expensive }} />
           </div>
 
           {ticks.map((tick) => (
@@ -293,15 +301,24 @@ function PriceRangeGauge({
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3 text-xs text-zinc-600">
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: GAUGE_ZONE_COLOR.cheap }}
+            />
             저렴
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: GAUGE_ZONE_COLOR.fair }}
+            />
             적정
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: GAUGE_ZONE_COLOR.expensive }}
+            />
             비쌈
           </span>
         </div>
@@ -954,6 +971,14 @@ export function MainAnalyzerClient() {
               </a>
             </div>
           ) : null}
+
+          <p className="text-center text-[11px] leading-relaxed text-zinc-400">
+            본 서비스의 가격은 참고용입니다.
+            <br />
+            실제 거래가와 다를 수 있으며 중요한 거래 전
+            <br />
+            반드시 직접 시세를 확인하세요.
+          </p>
         </section>
       ) : null}
     </main>
