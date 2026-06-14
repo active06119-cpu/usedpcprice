@@ -778,9 +778,11 @@ async function crossValidateParts(parts: AnalyzedPart[]): Promise<{
 type SuspiciousPartCandidate = {
   index: number;
   partName: string;
+  category: string;
   calculatedPrice: number;
   formulaPrice: number | null;
   buyoutPrice: number | null;
+  reason: "ai_estimate" | "below_buyout" | "formula_deviation";
 };
 
 type ClaudeValidationResult = {
@@ -789,19 +791,8 @@ type ClaudeValidationResult = {
   correctedPrice: number | null;
 };
 
-async function resolveReferenceFormulaMid(part: AnalyzedPart): Promise<number | null> {
-  if (part.category === "GPU") {
-    const formula = await resolveGpuReferenceFormulaPrice(part);
-    return formula?.usedMid ?? null;
-  }
-  if (part.category === "CPU") {
-    const formula = await resolveCpuReferenceFormulaPrice(part);
-    return formula?.usedMid ?? null;
-  }
-  if (!part.partId) return null;
-  const formula = await resolveFormulaPriceFromNewProduct(part.partId, part.partName, part.category);
-  return formula?.usedMid ?? null;
-}
+const SUSPICIOUS_FORMULA_LOW_RATIO = 0.5;
+const SUSPICIOUS_FORMULA_HIGH_RATIO = 2.0;
 
 function isSuspiciousUsedPrice(
   usedMid: number,
@@ -810,9 +801,91 @@ function isSuspiciousUsedPrice(
 ): boolean {
   if (buyoutPrice !== null && buyoutPrice > 0 && usedMid < buyoutPrice) return true;
   if (!formulaPrice || formulaPrice <= 0) return false;
-  if (usedMid < formulaPrice * 0.5) return true;
-  if (usedMid > formulaPrice * 2.0) return true;
+  if (usedMid < formulaPrice * SUSPICIOUS_FORMULA_LOW_RATIO) return true;
+  if (usedMid > formulaPrice * SUSPICIOUS_FORMULA_HIGH_RATIO) return true;
   return false;
+}
+
+function getSuspiciousReason(
+  part: AnalyzedPart,
+  formulaPrice: number | null,
+  buyoutPrice: number | null,
+): SuspiciousPartCandidate["reason"] | null {
+  if (!part.usedMid || part.usedMid <= 0) return null;
+
+  if (buyoutPrice !== null && buyoutPrice > 0 && part.usedMid < buyoutPrice) {
+    return "below_buyout";
+  }
+
+  if (part.priceSource === "ai") {
+    if (!formulaPrice || formulaPrice <= 0) return "ai_estimate";
+    if (isSuspiciousUsedPrice(part.usedMid, formulaPrice, null)) return "formula_deviation";
+    return null;
+  }
+
+  if (part.priceSource === "validated" || part.priceSource === "formula") {
+    return null;
+  }
+
+  if (isSuspiciousUsedPrice(part.usedMid, formulaPrice, buyoutPrice)) {
+    return "formula_deviation";
+  }
+
+  return null;
+}
+
+function clampValidatedPrice(
+  correctedPrice: number,
+  formulaPrice: number | null,
+  buyoutPrice: number | null,
+): number {
+  let price = correctedPrice;
+
+  if (formulaPrice && formulaPrice > 0) {
+    const min = Math.round(formulaPrice * SUSPICIOUS_FORMULA_LOW_RATIO);
+    const max = Math.round(formulaPrice * SUSPICIOUS_FORMULA_HIGH_RATIO);
+    price = Math.max(min, Math.min(max, price));
+  }
+
+  if (buyoutPrice && buyoutPrice > 0 && price < buyoutPrice) {
+    price = Math.round(buyoutPrice * 1.2);
+  }
+
+  return price;
+}
+
+async function resolveReferenceFormulaBand(
+  part: AnalyzedPart,
+): Promise<{
+  usedLow: number;
+  usedMid: number;
+  usedHigh: number;
+  newPrice: number;
+} | null> {
+  if (part.category === "GPU") {
+    return resolveGpuReferenceFormulaPrice(part);
+  }
+  if (part.category === "CPU") {
+    return resolveCpuReferenceFormulaPrice(part);
+  }
+  if (!part.partId) return null;
+  return resolveFormulaPriceFromNewProduct(part.partId, part.partName, part.category);
+}
+
+function suspiciousReasonLabel(reason: SuspiciousPartCandidate["reason"]): string {
+  switch (reason) {
+    case "ai_estimate":
+      return "AI 추정 (참조 시세 없음)";
+    case "below_buyout":
+      return "매입가보다 낮음";
+    case "formula_deviation":
+      return "참조 시세 대비 이상";
+  }
+}
+
+async function resolveReferenceFormulaMid(part: AnalyzedPart): Promise<number | null> {
+  const band = await resolveReferenceFormulaBand(part);
+  return band?.usedMid ?? null;
 }
 
 function parseClaudeValidationResults(raw: string): ClaudeValidationResult[] {
@@ -862,19 +935,90 @@ async function collectSuspiciousParts(parts: AnalyzedPart[]): Promise<Suspicious
     const formulaPrice = await resolveReferenceFormulaMid(part);
     const buyout = part.partId ? await getBuyoutPrice(part.partId) : null;
     const buyoutPrice = buyout?.priceKrw ?? null;
-
-    if (!isSuspiciousUsedPrice(part.usedMid, formulaPrice, buyoutPrice)) continue;
+    const reason = getSuspiciousReason(part, formulaPrice, buyoutPrice);
+    if (!reason) continue;
 
     suspicious.push({
       index: i,
       partName: part.partName,
+      category: part.category,
       calculatedPrice: part.usedMid,
       formulaPrice,
       buyoutPrice,
+      reason,
     });
   }
 
   return suspicious;
+}
+
+function buildValidatedPart(
+  previous: AnalyzedPart,
+  correctedPrice: number,
+): AnalyzedPart | null {
+  if (!isSanePriceForCategory(correctedPrice, previous.category)) return null;
+  if (!shouldPersistUsedPrice(correctedPrice, previous.partName, previous.category)) return null;
+
+  return attachPriceSource(
+    {
+      ...previous,
+      usedMid: correctedPrice,
+      usedLow: Math.round(correctedPrice * 0.9),
+      usedHigh: Math.round(correctedPrice * 1.1),
+      approximated: false,
+    },
+    "validated",
+  );
+}
+
+async function tryFormulaFallback(
+  part: AnalyzedPart,
+  candidate: SuspiciousPartCandidate,
+): Promise<{ part: AnalyzedPart; message: string } | null> {
+  const formula = await resolveReferenceFormulaBand(part);
+  if (!formula) return null;
+
+  return {
+    part: attachPriceSource(
+      {
+        ...part,
+        usedLow: formula.usedLow,
+        usedMid: formula.usedMid,
+        usedHigh: formula.usedHigh,
+        newPrice: formula.newPrice,
+        approximated: true,
+        sampleSize: 0,
+      },
+      "formula",
+    ),
+    message: `${part.partName}: ${suspiciousReasonLabel(candidate.reason)} → 참조 시세(₩${formula.usedMid.toLocaleString()}) 적용`,
+  };
+}
+
+async function reconcileUnresolvedSuspiciousParts(
+  updated: AnalyzedPart[],
+  suspicious: SuspiciousPartCandidate[],
+  handledIndices: Set<number>,
+): Promise<string[]> {
+  const warnings: string[] = [];
+
+  for (const candidate of suspicious) {
+    if (handledIndices.has(candidate.index)) continue;
+
+    const part = updated[candidate.index];
+    const fallback = await tryFormulaFallback(part, candidate);
+    if (fallback) {
+      updated[candidate.index] = fallback.part;
+      warnings.push(fallback.message);
+      continue;
+    }
+
+    if (part.priceSource === "ai") {
+      warnings.push(`${part.partName}: AI 추정가 유지 (참고용 · 검증 기준 없음)`);
+    }
+  }
+
+  return warnings;
 }
 
 async function validateSuspiciousPartPrices(parts: AnalyzedPart[]): Promise<{
@@ -884,26 +1028,35 @@ async function validateSuspiciousPartPrices(parts: AnalyzedPart[]): Promise<{
   const suspicious = await collectSuspiciousParts(parts);
   if (suspicious.length === 0) return { parts, warnings: [] };
 
+  const updated = parts.map((part) => ({ ...part }));
+  const handledIndices = new Set<number>();
+  const warnings: string[] = [];
+
   const prompt = `다음 부품들의 중고 가격이 합리적인지 확인해줘.
 한국 2025년 번개장터/당근마켓 기준.
 
-검증 대상:
+검증 대상 (${suspicious.length}개, 의심 가격만):
 ${JSON.stringify(
-  suspicious.map(({ partName, calculatedPrice, formulaPrice, buyoutPrice }) => ({
+  suspicious.map(({ partName, category, calculatedPrice, formulaPrice, buyoutPrice, reason }) => ({
     partName,
+    category,
     calculatedPrice,
     formulaPrice,
     buyoutPrice,
+    reason,
+    reasonKo: suspiciousReasonLabel(reason),
   })),
   null,
   2,
 )}
 
 각 항목마다 JSON으로:
-{ partName, isValid: true/false, correctedPrice: null or 숫자 }
+{ "partName": "...", "isValid": true/false, "correctedPrice": null or 숫자 }
 
-명백히 틀린 것만 correctedPrice 제시.
-확실하지 않으면 isValid: true 유지.
+규칙:
+- 명백히 틀린 것만 correctedPrice 제시
+- formulaPrice가 있으면 correctedPrice는 formulaPrice의 0.5~2.0배 안쪽이어야 함
+- 확실하지 않으면 isValid: true, correctedPrice: null
 
 JSON 배열만 반환해.`;
 
@@ -913,10 +1066,6 @@ JSON 배열만 반환해.`;
       prompt,
     );
     const results = parseClaudeValidationResults(raw);
-    if (results.length === 0) return { parts, warnings: [] };
-
-    const updated = parts.map((part) => ({ ...part }));
-    const warnings: string[] = [];
 
     for (const result of results) {
       if (result.isValid !== false || result.correctedPrice === null) continue;
@@ -928,30 +1077,29 @@ JSON 배열만 반환해.`;
 
       const previous = updated[candidate.index];
       if (!previous.usedMid) continue;
-      if (!isSanePriceForCategory(result.correctedPrice, previous.category)) continue;
-      if (!shouldPersistUsedPrice(result.correctedPrice, previous.partName, previous.category)) {
-        continue;
-      }
 
-      updated[candidate.index] = {
-        ...previous,
-        usedMid: result.correctedPrice,
-        usedLow: Math.round(result.correctedPrice * 0.9),
-        usedHigh: Math.round(result.correctedPrice * 1.1),
-        priceSource: "validated",
-        priceSourceLabel: priceSourceLabelFor("validated"),
-        approximated: false,
-      };
+      const clamped = clampValidatedPrice(
+        result.correctedPrice,
+        candidate.formulaPrice,
+        candidate.buyoutPrice,
+      );
+      const nextPart = buildValidatedPart(previous, clamped);
+      if (!nextPart) continue;
+
+      updated[candidate.index] = nextPart;
+      handledIndices.add(candidate.index);
       warnings.push(
-        `${previous.partName}: AI 검증 보정 (₩${previous.usedMid.toLocaleString()} → ₩${result.correctedPrice.toLocaleString()})`,
+        `${previous.partName}: AI 검증 보정 (₩${previous.usedMid.toLocaleString()} → ₩${clamped.toLocaleString()})`,
       );
     }
-
-    return { parts: updated, warnings };
   } catch (error) {
     console.error("의심 가격 Claude 검증 실패:", error);
-    return { parts, warnings: [] };
+    warnings.push("의심 가격 AI 검증을 건너뛰고 참조 시세/원본을 사용합니다.");
   }
+
+  warnings.push(...(await reconcileUnresolvedSuspiciousParts(updated, suspicious, handledIndices)));
+
+  return { parts: updated, warnings };
 }
 
 async function fetchNaverLowestPrice(partName: string, category: string): Promise<number | null> {
@@ -1974,7 +2122,10 @@ async function validatePrices(
   analysisMode: AnalyzeResult["analysisMode"],
 ): Promise<AnalyzeResult> {
   const cross = await crossValidateParts(result.parts);
-  const claudeValidation = await validateSuspiciousPartPrices(cross.parts);
+  const claudeValidation =
+    analysisMode === "used"
+      ? await validateSuspiciousPartPrices(cross.parts)
+      : { parts: cross.parts, warnings: [] as string[] };
   const parts = claudeValidation.parts;
   const totals = summarizeTotals(parts);
   const { verdict, verdictKo, verdictReason } = buildVerdict(
