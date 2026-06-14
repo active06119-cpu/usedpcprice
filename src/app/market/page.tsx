@@ -10,6 +10,22 @@ const CONDITION_KO: Record<string, string> = {
   POOR: "불량",
 };
 
+const VERDICT_KO: Record<string, string> = {
+  CHEAP: "저렴해요",
+  FAIR: "적정가",
+  OVERPRICED: "약간비쌈",
+  WAY_OVERPRICED: "많이 비쌈",
+  NO_PRICE: "가격 정보 없음",
+};
+
+const VERDICT_STYLE: Record<string, string> = {
+  CHEAP: "border-blue-200 bg-blue-50 text-blue-800",
+  FAIR: "border-green-200 bg-green-50 text-green-700",
+  OVERPRICED: "border-yellow-200 bg-yellow-50 text-yellow-800",
+  WAY_OVERPRICED: "border-red-200 bg-red-50 text-red-800",
+  NO_PRICE: "border-zinc-200 bg-zinc-50 text-zinc-600",
+};
+
 function formatRelativeTime(date: Date) {
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.floor(diffMs / (60 * 1000));
@@ -19,6 +35,24 @@ function formatRelativeTime(date: Date) {
   if (hours < 24) return `${hours}시간 전`;
   const days = Math.floor(hours / 24);
   return `${days}일 전`;
+}
+
+function sourceLinkLabel(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("bunjang") || host.includes("joonggonara")) {
+      return "번개장터에서 보기 →";
+    }
+    if (host.includes("daangn") || host.includes("danggeun") || host.includes("karrot")) {
+      return "당근마켓에서 보기 →";
+    }
+    if (host.includes("joongna") || host.includes("cafe.naver")) {
+      return "중고나라에서 보기 →";
+    }
+  } catch {
+    // ignore invalid URL
+  }
+  return "원본 링크에서 보기 →";
 }
 
 const krw = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
@@ -65,6 +99,9 @@ export default async function MarketPage({ searchParams }: MarketPageProps) {
         priceKrw: true,
         condition: true,
         location: true,
+        sourceUrl: true,
+        verdict: true,
+        fairPriceMid: true,
         isFairVerified: true,
         createdAt: true,
       },
@@ -76,7 +113,7 @@ export default async function MarketPage({ searchParams }: MarketPageProps) {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">중고 PC 마켓</h1>
-          <p className="mt-1 text-sm text-zinc-600">등록된 매물을 확인하고 적정가 인증 여부를 비교해보세요.</p>
+          <p className="mt-1 text-sm text-zinc-600">등록된 매물을 확인하고 적정가 분석 결과를 비교해보세요.</p>
         </div>
         <Link
           href="/market/new"
@@ -117,25 +154,64 @@ export default async function MarketPage({ searchParams }: MarketPageProps) {
       </form>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {listings.map((item) => (
-          <article key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="line-clamp-2 text-sm font-semibold text-zinc-900">{item.title}</h2>
-              {item.isFairVerified ? (
-                <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                  ✓ 적정가 인증
-                </span>
+        {listings.map((item) => {
+          const verdictKey = item.verdict ?? "NO_PRICE";
+          const verdictLabel = VERDICT_KO[verdictKey] ?? verdictKey;
+
+          return (
+            <article key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="line-clamp-2 text-sm font-semibold text-zinc-900">{item.title}</h2>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  {item.verdict ? (
+                    <span
+                      className={`rounded-full border px-2 py-1 text-[11px] font-medium ${
+                        VERDICT_STYLE[verdictKey] ?? VERDICT_STYLE.NO_PRICE
+                      }`}
+                    >
+                      {verdictLabel}
+                    </span>
+                  ) : null}
+                  {item.isFairVerified ? (
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
+                      ✓ 적정가 인증
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <p className="mt-3 text-lg font-semibold text-zinc-900">{krw(item.priceKrw)}</p>
+
+              {item.fairPriceMid ? (
+                <p className="mt-1 text-xs text-zinc-500">
+                  분석 적정가: <span className="font-medium text-emerald-700">{krw(item.fairPriceMid)}</span>
+                </p>
               ) : null}
-            </div>
-            <p className="mt-3 text-lg font-semibold text-zinc-900">{krw(item.priceKrw)}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
-              <span>상태: {CONDITION_KO[item.condition] ?? item.condition}</span>
-              <span>지역: {item.location ?? "미입력"}</span>
-              <span>{formatRelativeTime(item.createdAt)}</span>
-            </div>
-          </article>
-        ))}
+
+              {item.sourceUrl ? (
+                <a
+                  href={item.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-block text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
+                >
+                  {sourceLinkLabel(item.sourceUrl)}
+                </a>
+              ) : null}
+
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
+                <span>상태: {CONDITION_KO[item.condition] ?? item.condition}</span>
+                <span>지역: {item.location ?? "미입력"}</span>
+                <span>{formatRelativeTime(item.createdAt)}</span>
+              </div>
+            </article>
+          );
+        })}
       </section>
+
+      {listings.length === 0 ? (
+        <p className="mt-8 text-center text-sm text-zinc-500">등록된 매물이 없습니다.</p>
+      ) : null}
     </main>
   );
 }

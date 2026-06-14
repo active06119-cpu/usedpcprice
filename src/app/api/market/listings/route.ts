@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
       condition?: "NEW" | "LIKE_NEW" | "GOOD" | "FAIR" | "POOR";
       location?: string | null;
       contact?: string;
+      sourceUrl?: string;
+      verdict?: string | null;
       isFairVerified?: boolean;
       fairPriceMid?: number | null;
       valuationRunId?: string | null;
@@ -32,11 +34,21 @@ export async function POST(req: NextRequest) {
     if (!body.title?.trim() || !body.description?.trim() || !body.contact?.trim()) {
       return NextResponse.json({ ok: false, message: "필수 입력값이 부족합니다." }, { status: 400 });
     }
+    if (!body.sourceUrl?.trim()) {
+      return NextResponse.json({ ok: false, message: "원본 URL이 필요합니다." }, { status: 400 });
+    }
     if (!Number.isFinite(body.priceKrw) || (body.priceKrw ?? 0) <= 0) {
       return NextResponse.json({ ok: false, message: "priceKrw가 올바르지 않습니다." }, { status: 400 });
     }
-    if (!body.condition) {
-      return NextResponse.json({ ok: false, message: "condition이 필요합니다." }, { status: 400 });
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(body.sourceUrl.trim());
+    } catch {
+      return NextResponse.json({ ok: false, message: "원본 URL 형식이 올바르지 않습니다." }, { status: 400 });
+    }
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return NextResponse.json({ ok: false, message: "http 또는 https URL만 등록할 수 있습니다." }, { status: 400 });
     }
 
     const created = await prisma.marketListing.create({
@@ -44,9 +56,11 @@ export async function POST(req: NextRequest) {
         title: body.title.trim(),
         description: body.description.trim(),
         priceKrw: body.priceKrw as number,
-        condition: body.condition as any,
+        condition: (body.condition ?? "GOOD") as any,
         location: body.location?.trim() || null,
         contact: body.contact.trim(),
+        sourceUrl: parsedUrl.toString(),
+        verdict: body.verdict?.trim() || null,
         isFairVerified: Boolean(body.isFairVerified),
         fairPriceMid: Number.isFinite(body.fairPriceMid ?? NaN) ? (body.fairPriceMid as number) : null,
         valuationRunId: body.valuationRunId ?? null,

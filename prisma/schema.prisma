@@ -389,6 +389,8 @@ model MarketListing {
   condition      PartCondition
   location       String?
   contact        String
+  sourceUrl      String?
+  verdict        String?
   isActive       Boolean       @default(true)
   isFairVerified Boolean       @default(false)
   fairPriceMid   Int?
