@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { isSchemaDriftError, normalizeMarketListing } from "@/lib/market-listing-meta";
 import { prisma } from "@/lib/prisma";
 
 const CONDITION_KO: Record<string, string> = {
@@ -88,14 +89,29 @@ export default async function MarketPage({ searchParams }: MarketPageProps) {
         ? { priceKrw: "desc" as const }
         : { createdAt: "desc" as const };
 
-  const listings = await prisma.marketListing
-    .findMany({
+  let rawListings: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    priceKrw: number;
+    condition: string;
+    location: string | null;
+    sourceUrl?: string | null;
+    verdict?: string | null;
+    fairPriceMid: number | null;
+    isFairVerified: boolean;
+    createdAt: Date;
+  }> = [];
+
+  try {
+    rawListings = await prisma.marketListing.findMany({
       where,
       orderBy,
       take: 90,
       select: {
         id: true,
         title: true,
+        description: true,
         priceKrw: true,
         condition: true,
         location: true,
@@ -105,8 +121,31 @@ export default async function MarketPage({ searchParams }: MarketPageProps) {
         isFairVerified: true,
         createdAt: true,
       },
-    })
-    .catch(() => []);
+    });
+  } catch (error) {
+    if (!isSchemaDriftError(error)) {
+      rawListings = [];
+    } else {
+      rawListings = await prisma.marketListing.findMany({
+        where,
+        orderBy,
+        take: 90,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          priceKrw: true,
+          condition: true,
+          location: true,
+          fairPriceMid: true,
+          isFairVerified: true,
+          createdAt: true,
+        },
+      });
+    }
+  }
+
+  const listings = rawListings.map((item) => normalizeMarketListing(item));
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">

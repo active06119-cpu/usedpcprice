@@ -2179,16 +2179,20 @@ async function persistAnalysisResult(
     }
   }
 
-  await prisma.valuationRun.create({
-    data: {
-      runType: "BUYER_CHECK" as any,
-      totalFairMid: result.totalFairMid,
-      totalFairLow: result.totalFairLow,
-      totalFairHigh: result.totalFairHigh,
-      askingPriceKrw: result.askingPrice,
-      verdict: result.verdict,
-    },
-  });
+  await prisma.valuationRun
+    .create({
+      data: {
+        runType: "BUYER_CHECK" as any,
+        totalFairMid: result.totalFairMid,
+        totalFairLow: result.totalFairLow,
+        totalFairHigh: result.totalFairHigh,
+        askingPriceKrw: result.askingPrice,
+        verdict: result.verdict,
+      },
+    })
+    .catch((error) => {
+      console.error("ValuationRun 저장 실패:", error);
+    });
 }
 
 export async function POST(req: NextRequest) {
