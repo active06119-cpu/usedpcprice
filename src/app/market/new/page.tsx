@@ -178,7 +178,13 @@ export default function NewMarketListingPage() {
         }),
       });
 
-      const createData = (await createRes.json()) as { ok?: boolean; message?: string };
+      const raw = await createRes.text();
+      let createData: { ok?: boolean; message?: string };
+      try {
+        createData = JSON.parse(raw) as { ok?: boolean; message?: string };
+      } catch {
+        throw new Error("등록 응답을 해석하지 못했습니다.");
+      }
       if (!createRes.ok || !createData.ok) {
         throw new Error(createData.message ?? "등록 실패");
       }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import type { AnalyzeResult } from "@/app/api/analyze/route";
 import { prisma } from "@/lib/prisma";
 
 type Params = {
@@ -9,6 +10,31 @@ type Params = {
 export async function GET(_req: Request, { params }: Params) {
   try {
     const { id } = await params;
+
+    const saved = await prisma.valuationResult.findUnique({
+      where: { id },
+      select: { payload: true, createdAt: true },
+    });
+
+    if (saved) {
+      const result = saved.payload as unknown as AnalyzeResult & { sourceText?: string | null };
+      return NextResponse.json({
+        ok: true,
+        kind: "shared",
+        result,
+        item: {
+          id,
+          createdAt: saved.createdAt.toISOString(),
+          askingPriceKrw: result.askingPrice,
+          totalFairLow: result.totalFairLow,
+          totalFairMid: result.totalFairMid,
+          totalFairHigh: result.totalFairHigh,
+          verdict: result.verdict,
+          parts: result.parts,
+        },
+      });
+    }
+
     const run = await prisma.valuationRun.findUnique({
       where: { id },
       include: {
@@ -37,6 +63,7 @@ export async function GET(_req: Request, { params }: Params) {
 
     return NextResponse.json({
       ok: true,
+      kind: "valuation_run",
       item: {
         id: run.id,
         runType: run.runType,
@@ -46,7 +73,7 @@ export async function GET(_req: Request, { params }: Params) {
         totalFairMid: run.totalFairMid,
         totalFairHigh: run.totalFairHigh,
         verdict: run.verdict,
-        createdAt: run.createdAt,
+        createdAt: run.createdAt.toISOString(),
         items: mappedItems,
       },
     });

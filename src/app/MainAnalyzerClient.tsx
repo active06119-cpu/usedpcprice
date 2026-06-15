@@ -540,11 +540,20 @@ export function MainAnalyzerClient() {
       const res = await fetch("/api/results/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ result, sourceText: text }),
+        body: JSON.stringify({
+          result: JSON.parse(JSON.stringify(result)),
+          sourceText: text,
+        }),
       });
-      const data = (await res.json()) as { ok?: boolean; id?: string; message?: string };
+      const raw = await res.text();
+      let data: { ok?: boolean; id?: string; message?: string };
+      try {
+        data = JSON.parse(raw) as { ok?: boolean; id?: string; message?: string };
+      } catch {
+        throw new Error("공유 저장 응답을 해석하지 못했습니다.");
+      }
       if (!res.ok || !data.ok || !data.id) {
-        throw new Error(data.message ?? "SAVE_FAILED");
+        throw new Error(data.message ?? "공유 링크 생성에 실패했습니다.");
       }
 
       const nextShareUrl = `${window.location.origin}/results/${data.id}`;

@@ -1,133 +1,231 @@
-'use client'
-// src/app/parts/[slug]/client.tsx
+"use client";
 
-import { useRouter } from 'next/navigation'
+import Link from "next/link";
+
+export type PriceProfileData = {
+  ok: boolean;
+  part: {
+    id: string;
+    slug: string;
+    fullName: string;
+    category: string;
+  };
+  summary: {
+    usedLow: number | null;
+    usedMid: number | null;
+    usedHigh: number | null;
+    newPrice: number | null;
+    depreciationPct: number | null;
+    sampleSize: number;
+  };
+  trend: Array<{ capturedAt: string; priceKrw: number }>;
+  conditions: Array<{
+    condition: string;
+    priceKrw: number | null;
+    sampleSize: number;
+  }>;
+  latestCapturedAt: string | null;
+};
+
+const CAT_KO: Record<string, string> = {
+  GPU: "그래픽카드",
+  CPU: "CPU",
+  RAM: "메모리",
+  SSD: "SSD",
+  HDD: "HDD",
+  MOTHERBOARD: "메인보드",
+  PSU: "파워",
+  CASE: "케이스",
+  COOLER: "쿨러",
+};
+
+const CONDITION_ORDER = ["NEW", "LIKE_NEW", "GOOD", "FAIR"] as const;
 
 const COND_KO: Record<string, string> = {
-  NEW: '새 제품', LIKE_NEW: '개봉만', GOOD: '사용감 적음',
-  FAIR: '사용감 있음', POOR: '불량',
-}
-const krw = (n: number | null) => n ? `₩${n.toLocaleString()}` : '—'
+  NEW: "새 제품",
+  LIKE_NEW: "개봉만",
+  GOOD: "사용감 적음",
+  FAIR: "사용감 있음",
+};
 
-export default function PartPriceClient({ data, slug }: { data: any; slug: string }) {
-  const router = useRouter()
-  const { part, used, newPrice, depreciationPct } = data
+const krw = (n: number | null | undefined) =>
+  typeof n === "number" && Number.isFinite(n) ? `₩${n.toLocaleString("ko-KR")}` : "—";
+
+function buildWeeklyAverages(trend: PriceProfileData["trend"]) {
+  const buckets = new Map<string, number[]>();
+
+  for (const point of trend) {
+    const date = new Date(point.capturedAt);
+    if (!Number.isFinite(date.getTime()) || !Number.isFinite(point.priceKrw)) continue;
+
+    const weekStart = new Date(date);
+    const day = weekStart.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    weekStart.setDate(weekStart.getDate() + diff);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const key = weekStart.toISOString().slice(0, 10);
+    const rows = buckets.get(key) ?? [];
+    rows.push(point.priceKrw);
+    buckets.set(key, rows);
+  }
+
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([weekStart, prices]) => {
+      const avg = Math.round(prices.reduce((sum, price) => sum + price, 0) / prices.length);
+      const labelDate = new Date(weekStart);
+      const label = `${labelDate.getMonth() + 1}/${labelDate.getDate()}`;
+      return { weekStart, label, avgPrice: avg, count: prices.length };
+    });
+}
+
+type Props = {
+  data: PriceProfileData;
+};
+
+export default function PartDetailClient({ data }: Props) {
+  const { part, summary, trend, conditions } = data;
+  const weeklyTrend = buildWeeklyAverages(trend);
+  const trendMax = weeklyTrend.length > 0 ? Math.max(...weeklyTrend.map((w) => w.avgPrice)) : 0;
+  const trendMin = weeklyTrend.length > 0 ? Math.min(...weeklyTrend.map((w) => w.avgPrice)) : 0;
+
+  const conditionRows = CONDITION_ORDER.map((condition) => {
+    const row = conditions.find((item) => item.condition === condition);
+    return {
+      condition,
+      label: COND_KO[condition] ?? condition,
+      priceKrw: row?.priceKrw ?? null,
+      isDefault: condition === "GOOD",
+    };
+  });
+
+  const analyzeHref = `/?q=${encodeURIComponent(part.fullName)}`;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-
-      {/* 브레드크럼 */}
-      <div className="flex items-center gap-2 text-sm text-gray-400">
-        <span className="cursor-pointer hover:text-gray-600" onClick={() => router.push('/parts')}>
+    <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+      <nav className="flex items-center gap-2 text-sm text-zinc-400">
+        <Link href="/parts" className="hover:text-zinc-600">
           부품 시세
-        </span>
-        <span>›</span>
-        <span>{part.category}</span>
-        <span>›</span>
-        <span className="text-gray-700">{part.fullName}</span>
-      </div>
+        </Link>
+        <span aria-hidden>›</span>
+        <span>{CAT_KO[part.category] ?? part.category}</span>
+      </nav>
 
-      {/* 헤더 */}
-      <div>
-        <h1 className="text-2xl font-medium mb-1">{part.fullName}</h1>
-        <p className="text-sm text-gray-400">
-          {part.releaseYear && `${part.releaseYear}년 출시 · `}
-          {used.sampleSize}개 거래 기준 · 최근 60일
+      <header>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{part.fullName}</h1>
+          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
+            {CAT_KO[part.category] ?? part.category}
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-zinc-500">
+          실거래 {summary.sampleSize.toLocaleString("ko-KR")}건 기준 · 최근 60일
         </p>
-      </div>
+      </header>
 
-      {/* 핵심 가격 */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-gray-50 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-400 mb-1">하한가</div>
-          <div className="text-lg font-medium">{krw(used.low)}</div>
+      <section className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl bg-zinc-50 p-4 text-center">
+          <div className="text-xs text-zinc-500">하한가</div>
+          <div className="mt-1 text-lg font-semibold text-zinc-900">{krw(summary.usedLow)}</div>
         </div>
-        <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 text-center">
-          <div className="text-xs text-teal-600 mb-1">적정가</div>
-          <div className="text-xl font-semibold text-teal-800">{krw(used.mid)}</div>
-          {depreciationPct && (
-            <div className="text-xs text-teal-600 mt-1">신품 대비 -{depreciationPct}%</div>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
+          <div className="text-xs font-medium text-green-700">적정가</div>
+          <div className="mt-1 text-xl font-bold text-green-800">{krw(summary.usedMid)}</div>
+        </div>
+        <div className="rounded-xl bg-zinc-50 p-4 text-center">
+          <div className="text-xs text-zinc-500">상한가</div>
+          <div className="mt-1 text-lg font-semibold text-zinc-900">{krw(summary.usedHigh)}</div>
+        </div>
+      </section>
+
+      {summary.newPrice != null && (
+        <section className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
+          신품가 {krw(summary.newPrice)}
+          {summary.depreciationPct != null && (
+            <span className="text-zinc-500"> · 중고 대비 -{summary.depreciationPct}%</span>
           )}
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4 text-center">
-          <div className="text-xs text-gray-400 mb-1">상한가</div>
-          <div className="text-lg font-medium">{krw(used.high)}</div>
-        </div>
-      </div>
-
-      {/* 신품 기준가 */}
-      {newPrice && (
-        <div className="flex items-center justify-between px-4 py-3 border rounded-xl text-sm">
-          <span className="text-gray-500">신품 기준가</span>
-          <span className="font-medium">{krw(newPrice)}</span>
-        </div>
+        </section>
       )}
 
-      {/* 상태별 가격 */}
-      <div className="border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b bg-gray-50 text-sm font-medium">상태별 가격</div>
+      <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="border-b border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-700">
+          상태별 가격
+        </div>
         <table className="w-full text-sm">
-          <tbody className="divide-y">
-            {Object.entries(used.byCondition)
-              .filter(([, v]: any) => v.count > 0)
-              .map(([cond, v]: any) => (
-                <tr key={cond}>
-                  <td className="px-4 py-3 text-gray-600">{COND_KO[cond] ?? cond}</td>
-                  <td className="px-4 py-3 text-right font-medium">{krw(v.mid)}</td>
-                  <td className="px-4 py-3 text-right text-xs text-gray-400">{v.count}개 기준</td>
-                </tr>
-              ))}
+          <tbody className="divide-y divide-zinc-100">
+            {conditionRows.map((row) => (
+              <tr
+                key={row.condition}
+                className={row.isDefault ? "bg-green-50/60" : undefined}
+              >
+                <td className="px-4 py-3 text-zinc-700">
+                  {row.label}
+                  {row.isDefault && (
+                    <span className="ml-2 text-xs font-medium text-green-700">← 기본값</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right font-semibold text-zinc-900">
+                  {krw(row.priceKrw)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-        {Object.values(used.byCondition).every((v: any) => v.count === 0) && (
-          <div className="px-4 py-4 text-sm text-gray-400 text-center">
-            아직 상태별 데이터가 없습니다
+      </section>
+
+      <section className="rounded-xl border border-zinc-200 bg-white p-4">
+        <h2 className="text-sm font-medium text-zinc-800">최근 60일 시세 추이</h2>
+        <p className="mt-0.5 text-xs text-zinc-500">주간 평균 가격</p>
+
+        {weeklyTrend.length === 0 ? (
+          <p className="mt-4 text-sm text-zinc-400">표시할 시세 데이터가 없습니다.</p>
+        ) : (
+          <div className="mt-4">
+            <div className="flex h-36 items-end gap-1.5">
+              {weeklyTrend.map((week) => {
+                const range = trendMax - trendMin;
+                const heightPct =
+                  range === 0 ? 100 : Math.max(12, ((week.avgPrice - trendMin) / range) * 100);
+                return (
+                  <div
+                    key={week.weekStart}
+                    className="group flex min-w-0 flex-1 flex-col items-center gap-1"
+                  >
+                    <div
+                      className="w-full rounded-sm bg-green-500/80 transition-colors group-hover:bg-green-600"
+                      style={{ height: `${heightPct}%` }}
+                      title={`${week.label}: ${krw(week.avgPrice)} (${week.count}건)`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex gap-1.5">
+              {weeklyTrend.map((week) => (
+                <div
+                  key={`${week.weekStart}-label`}
+                  className="min-w-0 flex-1 truncate text-center text-[10px] text-zinc-400"
+                >
+                  {week.label}
+                </div>
+              ))}
+            </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* 시세 추이 */}
-      {used.trend.length > 0 && (
-        <div className="border rounded-xl p-4">
-          <div className="text-sm font-medium mb-3">최근 60일 시세 추이</div>
-          <div className="flex items-end gap-1 h-20">
-            {used.trend.map((t: any, i: number) => {
-              const max = Math.max(...used.trend.map((x: any) => x.price))
-              const min = Math.min(...used.trend.map((x: any) => x.price))
-              const h = max === min ? 50 : ((t.price - min) / (max - min)) * 100
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full bg-teal-400 rounded-sm"
-                    style={{ height: `${Math.max(h, 8)}%` }}
-                    title={`${t.date}: ${krw(t.price)}`}
-                  />
-                  <div className="text-xs text-gray-400 rotate-45 origin-left whitespace-nowrap">
-                    {t.date.slice(5)}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* CTA */}
-      <div className="border border-teal-200 bg-teal-50 rounded-xl p-4">
-        <div className="text-sm font-medium text-teal-800 mb-1">
-          {part.fullName} 매물 분석하기
-        </div>
-        <div className="text-xs text-teal-600 mb-3">
-          번개장터·당근 매물 본문을 붙여넣으면 적정가인지 바로 확인해드립니다
-        </div>
-        <button
-          onClick={() => router.push(`/?q=${encodeURIComponent(part.fullName)}`)}
-          className="text-sm px-4 py-2 bg-teal-600 text-white rounded-lg"
+      <section className="rounded-xl border border-green-200 bg-green-50 p-5">
+        <Link
+          href={analyzeHref}
+          className="inline-flex items-center text-sm font-semibold text-green-800 hover:text-green-900"
         >
-          지금 분석하기 →
-        </button>
-      </div>
-
-    </div>
-  )
+          이 부품 매물 분석하기 →
+        </Link>
+        <p className="mt-1 text-xs text-green-700">
+          번개장터·당근 매물 본문을 붙여넣으면 적정가인지 바로 확인할 수 있습니다.
+        </p>
+      </section>
+    </main>
+  );
 }
