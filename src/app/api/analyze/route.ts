@@ -1021,30 +1021,139 @@ async function reconcileUnresolvedSuspiciousParts(
   return warnings;
 }
 
-async function validateSuspiciousPartPrices(parts: AnalyzedPart[]): Promise<{
+async function hasReferencePrice(part: AnalyzedPart): Promise<boolean> {
+  const category = part.category.toUpperCase();
+
+  if (category === "GPU") {
+    return (
+      getGpuReferencePrice(part.partName) !== null ||
+      findGpuReferenceNewPrice(part.partName) !== null
+    );
+  }
+
+  if (category === "CPU") {
+    return (
+      getCpuReferencePrice(part.partName) !== null ||
+      findCpuReferenceNewPrice(part.partName) !== null
+    );
+  }
+
+  if (category === "RAM") {
+    if (RAM_STATIC_MID_KRW[ramPartKey(part.partName)]) return true;
+    if (!part.partId) return false;
+    const dbPrice = await resolveUsedPriceFromDb(part.partId, part.partName, "RAM", 1);
+    return dbPrice !== null;
+  }
+
+  if (category === "SSD") {
+    if (!part.partId) return false;
+    const formula = await resolveFormulaPriceFromNewProduct(part.partId, part.partName, "SSD");
+    if (formula) return true;
+    const dbPrice = await resolveUsedPriceFromDb(part.partId, part.partName, "SSD", 1);
+    return dbPrice !== null;
+  }
+
+  return true;
+}
+
+async function needsRarePartClaudeReview(part: AnalyzedPart): Promise<boolean> {
+  const category = part.category.toUpperCase();
+  if (!["GPU", "CPU", "RAM", "SSD"].includes(category)) return false;
+  if (!part.usedMid || part.usedMid <= 0) return false;
+  if (await hasReferencePrice(part)) return false;
+
+  const buyout = part.partId ? await getBuyoutPrice(part.partId) : null;
+  return !(buyout?.priceKrw && buyout.priceKrw > 0);
+}
+
+async function validatePartPricesWithCode(parts: AnalyzedPart[]): Promise<{
   parts: AnalyzedPart[];
   warnings: string[];
 }> {
-  const suspicious = await collectSuspiciousParts(parts);
-  if (suspicious.length === 0) return { parts, warnings: [] };
-
   const updated = parts.map((part) => ({ ...part }));
-  const handledIndices = new Set<number>();
   const warnings: string[] = [];
 
-  const prompt = `다음 부품들의 중고 가격이 합리적인지 확인해줘.
-한국 2025년 번개장터/당근마켓 기준.
+  for (let i = 0; i < updated.length; i += 1) {
+    const part = updated[i];
+    if (!part.usedMid || part.usedMid <= 0 || !part.partId) continue;
+    if (part.priceSource !== "db") continue;
 
-검증 대상 (${suspicious.length}개, 의심 가격만):
+    const check = await validateAndCleanPrices(part.partId, part.category, [
+      {
+        id: `code-validate-${i}`,
+        priceKrw: part.usedMid,
+        sourceType: "MANUAL",
+      },
+    ]);
+
+    if (check.valid.length > 0) continue;
+
+    const formulaPrice = await resolveReferenceFormulaMid(part);
+    const buyout = await getBuyoutPrice(part.partId);
+    const fallback = await tryFormulaFallback(part, {
+      index: i,
+      partName: part.partName,
+      category: part.category,
+      calculatedPrice: part.usedMid,
+      formulaPrice,
+      buyoutPrice: buyout?.priceKrw ?? null,
+      reason: "formula_deviation",
+    });
+
+    if (fallback) {
+      updated[i] = fallback.part;
+      warnings.push(`${part.partName}: 코드 검수 보정 (${fallback.message})`);
+    }
+  }
+
+  const suspicious = await collectSuspiciousParts(updated);
+  const handledIndices = new Set<number>();
+
+  for (const candidate of suspicious) {
+    if (handledIndices.has(candidate.index)) continue;
+
+    const part = updated[candidate.index];
+    const fallback = await tryFormulaFallback(part, candidate);
+    if (!fallback) continue;
+
+    updated[candidate.index] = fallback.part;
+    handledIndices.add(candidate.index);
+    warnings.push(fallback.message);
+  }
+
+  warnings.push(...(await reconcileUnresolvedSuspiciousParts(updated, suspicious, handledIndices)));
+
+  return { parts: updated, warnings };
+}
+
+async function validateRarePartsWithClaude(parts: AnalyzedPart[]): Promise<{
+  parts: AnalyzedPart[];
+  warnings: string[];
+}> {
+  const candidates: Array<{ index: number; part: AnalyzedPart }> = [];
+
+  for (let i = 0; i < parts.length; i += 1) {
+    if (await needsRarePartClaudeReview(parts[i])) {
+      candidates.push({ index: i, part: parts[i] });
+    }
+  }
+
+  if (candidates.length === 0) {
+    return { parts, warnings: [] };
+  }
+
+  const updated = parts.map((part) => ({ ...part }));
+  const warnings: string[] = [];
+
+  const prompt = `다음은 참조 시세표·매입가 데이터가 없는 희귀/구형 PC 부품입니다.
+한국 2025년 번개장터·당근마켓 GOOD 상태 기준으로 가격을 검수해줘.
+
 ${JSON.stringify(
-  suspicious.map(({ partName, category, calculatedPrice, formulaPrice, buyoutPrice, reason }) => ({
-    partName,
-    category,
-    calculatedPrice,
-    formulaPrice,
-    buyoutPrice,
-    reason,
-    reasonKo: suspiciousReasonLabel(reason),
+  candidates.map(({ part }) => ({
+    partName: part.partName,
+    category: part.category,
+    calculatedPrice: part.usedMid,
+    condition: part.condition,
   })),
   null,
   2,
@@ -1054,15 +1163,13 @@ ${JSON.stringify(
 { "partName": "...", "isValid": true/false, "correctedPrice": null or 숫자 }
 
 규칙:
-- 명백히 틀린 것만 correctedPrice 제시
-- formulaPrice가 있으면 correctedPrice는 formulaPrice의 0.5~2.0배 안쪽이어야 함
+- 명백히 비현실적인 가격만 correctedPrice 제시
 - 확실하지 않으면 isValid: true, correctedPrice: null
-
-JSON 배열만 반환해.`;
+- JSON 배열만 반환`;
 
   try {
     const raw = await callClaude(
-      "너는 한국 중고 PC 부품 시세 검증 전문가야. 요청된 JSON 배열만 반환해.",
+      "너는 한국 중고 PC 희귀 부품 시세 전문가야. 요청된 JSON 배열만 반환해.",
       prompt,
     );
     const results = parseClaudeValidationResults(raw);
@@ -1071,33 +1178,33 @@ JSON 배열만 반환해.`;
       if (result.isValid !== false || result.correctedPrice === null) continue;
 
       const candidate =
-        suspicious.find((item) => partNamesMatch(item.partName, result.partName)) ??
-        suspicious.find((item) => item.partName === result.partName);
+        candidates.find((item) => partNamesMatch(item.part.partName, result.partName)) ??
+        candidates.find((item) => item.part.partName === result.partName);
       if (!candidate) continue;
 
       const previous = updated[candidate.index];
       if (!previous.usedMid) continue;
 
-      const clamped = clampValidatedPrice(
-        result.correctedPrice,
-        candidate.formulaPrice,
-        candidate.buyoutPrice,
-      );
+      const clamped = clampValidatedPrice(result.correctedPrice, null, null);
       const nextPart = buildValidatedPart(previous, clamped);
       if (!nextPart) continue;
 
       updated[candidate.index] = nextPart;
-      handledIndices.add(candidate.index);
       warnings.push(
-        `${previous.partName}: AI 검증 보정 (₩${previous.usedMid.toLocaleString()} → ₩${clamped.toLocaleString()})`,
+        `${previous.partName}: 희귀 부품 AI 검수 보정 (₩${previous.usedMid.toLocaleString()} → ₩${clamped.toLocaleString()})`,
       );
     }
   } catch (error) {
-    console.error("의심 가격 Claude 검증 실패:", error);
-    warnings.push("의심 가격 AI 검증을 건너뛰고 참조 시세/원본을 사용합니다.");
+    console.error("희귀 부품 Claude 검수 실패:", error);
+    warnings.push("희귀 부품 AI 검수를 건너뛰었습니다.");
   }
 
-  warnings.push(...(await reconcileUnresolvedSuspiciousParts(updated, suspicious, handledIndices)));
+  for (const { index, part } of candidates) {
+    if (updated[index].priceSource === "validated") continue;
+    if (part.priceSource === "ai") {
+      warnings.push(`${part.partName}: AI 추정가 유지 (참고용 · 검증 기준 없음)`);
+    }
+  }
 
   return { parts: updated, warnings };
 }
@@ -1220,7 +1327,7 @@ async function saveAiEstimatedBandSnapshots(
   });
 }
 
-// ── Step 1: AI 부품 추출 ─────────────────────────────────
+// ── Step 1: AI 부품 추출 + 가격 추정 (Claude 1회) ─────────
 const EXTRACT_SYSTEM = `
 너는 한국 중고마켓 PC 매물 텍스트 파서야. 부품과 가격을 추출해서 JSON으로만 반환해.
 
@@ -2122,11 +2229,15 @@ async function validatePrices(
   analysisMode: AnalyzeResult["analysisMode"],
 ): Promise<AnalyzeResult> {
   const cross = await crossValidateParts(result.parts);
-  const claudeValidation =
+  const codeValidated =
     analysisMode === "used"
-      ? await validateSuspiciousPartPrices(cross.parts)
+      ? await validatePartPricesWithCode(cross.parts)
       : { parts: cross.parts, warnings: [] as string[] };
-  const parts = claudeValidation.parts;
+  const rareValidated =
+    analysisMode === "used"
+      ? await validateRarePartsWithClaude(codeValidated.parts)
+      : { parts: codeValidated.parts, warnings: [] as string[] };
+  const parts = rareValidated.parts;
   const totals = summarizeTotals(parts);
   const { verdict, verdictKo, verdictReason } = buildVerdict(
     result.askingPrice,
@@ -2141,7 +2252,12 @@ async function validatePrices(
     verdict,
     verdictKo,
     verdictReason,
-    warnings: [...result.warnings, ...cross.warnings, ...claudeValidation.warnings],
+    warnings: [
+      ...result.warnings,
+      ...cross.warnings,
+      ...codeValidated.warnings,
+      ...rareValidated.warnings,
+    ],
   };
 }
 
