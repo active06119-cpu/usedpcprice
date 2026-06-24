@@ -459,6 +459,8 @@ export function MainAnalyzerClient() {
         setShowInputExampleHint(true);
       } else if (err.message.includes("부품 추출 실패")) {
         setError("매물 본문을 더 자세히 입력해주세요. 부품명과 가격이 포함되면 더 정확해요.");
+      } else if (err.message.includes("AI 분석 서비스") || err.message.includes("API 키")) {
+        setError(err.message);
       } else {
         setError(err.message || "잠시 후 다시 시도해주세요.");
       }

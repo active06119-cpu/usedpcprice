@@ -79,7 +79,7 @@ function toPriceProfileData(
       usedHigh: high,
       newPrice,
       depreciationPct,
-      sampleSize: snapshots.length,
+      sampleSize: usedSnapshots.length,
     },
     trend: usedSnapshots.map((row) => ({
       capturedAt: row.capturedAt.toISOString(),
@@ -136,7 +136,7 @@ async function loadPartPageData(slug: string): Promise<
   const snapshots = await prisma.priceSnapshot.findMany({
     where: {
       partId: part.id,
-      sourceType: { notIn: ["BUYOUT", "SEED"] as any },
+      sourceType: { in: ["BUNJANG", "DAANGN", "JOONGNA", "MANUAL"] as any },
       capturedAt: { gte: from },
     },
     orderBy: { capturedAt: "desc" },
@@ -148,7 +148,8 @@ async function loadPartPageData(slug: string): Promise<
     },
   });
 
-  const prices = snapshots.map((row) => row.priceKrw).sort((a, b) => a - b);
+  const usedSnapshots = snapshots;
+  const prices = usedSnapshots.map((row) => row.priceKrw).sort((a, b) => a - b);
   const mid = prices.length ? prices[Math.floor(prices.length / 2)] : null;
   const low = prices.length ? prices[Math.floor(prices.length * 0.1)] : null;
   const high = prices.length ? prices[Math.floor(prices.length * 0.9)] : null;
@@ -165,7 +166,7 @@ async function loadPartPageData(slug: string): Promise<
 
   const clientProps: PartPriceClientProps = {
     part,
-    snapshots,
+    snapshots: usedSnapshots,
     mid,
     low,
     high,

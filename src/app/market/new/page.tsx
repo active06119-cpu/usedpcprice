@@ -88,6 +88,7 @@ export default function NewMarketListingPage() {
   const [message, setMessage] = useState("");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
   const [analyzedPrice, setAnalyzedPrice] = useState<number | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   function validateForm(): number | null {
     if (!sourceUrl.trim() || !title.trim() || !description.trim() || !priceKrw.trim() || !contact.trim()) {
@@ -140,6 +141,11 @@ export default function NewMarketListingPage() {
   }
 
   async function onRegister() {
+    if (!agreedToTerms) {
+      setMessage("이용약관 및 개인정보처리방침에 동의해주세요.");
+      return;
+    }
+
     if (!analysis || analyzedPrice === null) {
       setMessage("먼저 분석을 실행해주세요.");
       return;
@@ -198,6 +204,7 @@ export default function NewMarketListingPage() {
       setContact("");
       setAnalysis(null);
       setAnalyzedPrice(null);
+      setAgreedToTerms(false);
     } catch (e) {
       const err = e as Error;
       setMessage(err.message || "등록 중 오류가 발생했습니다.");
@@ -362,11 +369,39 @@ export default function NewMarketListingPage() {
                 ))}
               </ul>
             ) : null}
-            <div className="mt-4 flex justify-end">
+            <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-zinc-700">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-600 underline hover:text-teal-700"
+                >
+                  이용약관
+                </Link>
+                {" 및 "}
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-600 underline hover:text-teal-700"
+                >
+                  개인정보처리방침
+                </Link>
+                에 동의합니다
+              </span>
+            </label>
+            <div className="mt-3 flex justify-end">
               <button
                 type="button"
                 onClick={onRegister}
-                disabled={registering || analyzing}
+                disabled={registering || analyzing || !agreedToTerms}
                 className="rounded-xl border border-emerald-300 bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 {registering ? "등록 중..." : "이 가격으로 등록"}
@@ -380,6 +415,10 @@ export default function NewMarketListingPage() {
             {message}
           </p>
         ) : null}
+
+        <p className="text-xs text-zinc-400">
+          게시 내용에 대한 책임은 작성자에게 있습니다.
+        </p>
       </section>
     </main>
   );

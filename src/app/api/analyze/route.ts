@@ -277,15 +277,7 @@ async function getNaverShoppingNewPrice(
 
   if (fromDb) return fromDb;
 
-  const live = await fetchNaverLowestPrice(partName, category);
-  if (
-    live &&
-    isValidNewPrice(live, partName, category) &&
-    isSanePriceForCategory(live, category)
-  ) {
-    return live;
-  }
-
+  // 실시간 네이버 API는 요청당 1~2초 지연 — DB/참조표만 사용 (admin 배치에서 갱신)
   return null;
 }
 
@@ -613,7 +605,7 @@ async function resolveUsedPriceFromDb(
   partId: string,
   partName: string,
   category: string,
-  minSamples = 3,
+  minSamples = 5,
 ): Promise<{
   usedLow: number;
   usedMid: number;
@@ -1395,19 +1387,53 @@ GPU(그래픽카드), CPU(프로세서), RAM(메모리), SSD, HDD, MOTHERBOARD(�
 }
 `;
 
-async function extractListingFromText(text: string): Promise<{ askingPrice: number | null; parts: any[] }> {
-  const raw = await callClaude(EXTRACT_SYSTEM, text);
+function parseExtractResponse(raw: string): { askingPrice?: number | null; parts?: unknown[] } {
   const cleaned = raw.replace(/```json|```/g, "").trim();
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("JSON not found in extraction response.");
+
+  const tryParse = (payload: string) => {
+    try {
+      return JSON.parse(payload) as { askingPrice?: number | null; parts?: unknown[] };
+    } catch {
+      return null;
+    }
+  };
+
+  const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    const parsed = tryParse(objectMatch[0]);
+    if (parsed) return parsed;
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as { askingPrice?: number | null; parts?: any[] };
-  const parts = normalizeExtractedParts(Array.isArray(parsed.parts) ? parsed.parts : []);
+  const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    const parsed = tryParse(arrayMatch[0]);
+    if (Array.isArray(parsed)) return { parts: parsed };
+  }
+
+  throw new Error("EXTRACTION_JSON_NOT_FOUND");
+}
+
+const VALID_PART_CATEGORIES = new Set([
+  "GPU",
+  "CPU",
+  "RAM",
+  "SSD",
+  "HDD",
+  "MOTHERBOARD",
+  "PSU",
+  "CASE",
+  "COOLER",
+]);
+
+async function extractListingFromText(text: string): Promise<{ askingPrice: number | null; parts: any[] }> {
+  const raw = await callClaude(EXTRACT_SYSTEM, text);
+  const parsed = parseExtractResponse(raw);
+  const normalized = normalizeExtractedParts(Array.isArray(parsed.parts) ? parsed.parts : []);
+  const parts = supplementRamPartsFromText(text, normalized);
+
   return {
     askingPrice: typeof parsed.askingPrice === "number" ? parsed.askingPrice : null,
-    parts: supplementRamPartsFromText(text, parts),
+    parts,
   };
 }
 
@@ -1473,23 +1499,27 @@ function applyExtractedEstimatesToResolved(
 }
 
 function normalizeExtractedParts(parts: any[]): any[] {
-  return parts.map((part) => {
-    const rawCategory = String(part.category ?? "").toUpperCase();
-    const category =
-      rawCategory === "MEMORY" || rawCategory === "MEM" || rawCategory === "메모리" ? "RAM" : rawCategory;
+  return parts
+    .map((part) => {
+      const rawCategory = String(part.category ?? "").toUpperCase();
+      const category =
+        rawCategory === "MEMORY" || rawCategory === "MEM" || rawCategory === "메모리"
+          ? "RAM"
+          : rawCategory;
 
-    return {
-      ...part,
-      partName: String(part.partName ?? "").trim(),
-      category,
-      condition: String(part.condition ?? "GOOD").toUpperCase(),
-      conditionKo: part.conditionKo ?? "사용감 적음",
-      estimatedUsedMid: parseOptionalEstimate(part.estimatedUsedMid),
-      estimatedUsedLow: parseOptionalEstimate(part.estimatedUsedLow),
-      estimatedUsedHigh: parseOptionalEstimate(part.estimatedUsedHigh),
-      estimatedNewPrice: parseOptionalEstimate(part.estimatedNewPrice),
-    };
-  });
+      return {
+        ...part,
+        partName: String(part.partName ?? "").trim(),
+        category,
+        condition: String(part.condition ?? "GOOD").toUpperCase(),
+        conditionKo: part.conditionKo ?? "사용감 적음",
+        estimatedUsedMid: parseOptionalEstimate(part.estimatedUsedMid),
+        estimatedUsedLow: parseOptionalEstimate(part.estimatedUsedLow),
+        estimatedUsedHigh: parseOptionalEstimate(part.estimatedUsedHigh),
+        estimatedNewPrice: parseOptionalEstimate(part.estimatedNewPrice),
+      };
+    })
+    .filter((part) => part.partName.length > 0 && VALID_PART_CATEGORIES.has(part.category));
 }
 
 function ramPartKey(partName: string): string {
@@ -1849,11 +1879,16 @@ async function resolvePartsForNewMode(parts: any[]): Promise<AnalyzedPart[]> {
 
 // ── Claude 호출 헬퍼 ─────────────────────────────────────
 async function callClaude(system: string, user: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY_MISSING");
+  }
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
+      "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
@@ -1863,8 +1898,25 @@ async function callClaude(system: string, user: string): Promise<string> {
       messages: [{ role: "user", content: user }],
     }),
   });
-  const data = await res.json();
-  return data.content?.[0]?.text ?? "";
+
+  const data = (await res.json()) as {
+    content?: Array<{ text?: string }>;
+    error?: { type?: string; message?: string };
+  };
+
+  if (!res.ok) {
+    const detail = data.error?.message ?? res.statusText;
+    console.error("[callClaude] API error:", res.status, detail);
+    throw new Error(`CLAUDE_API_ERROR:${res.status}:${detail}`);
+  }
+
+  const text = data.content?.[0]?.text?.trim() ?? "";
+  if (!text) {
+    console.error("[callClaude] empty response:", data);
+    throw new Error("CLAUDE_EMPTY_RESPONSE");
+  }
+
+  return text;
 }
 
 type ExtractedListing = { askingPrice: number | null; parts: any[] };
@@ -1881,15 +1933,84 @@ async function extractParts(text: string): Promise<ExtractedListing> {
   try {
     const extracted = await extractListingFromText(text);
     if (!extracted.parts?.length) {
-      throw new Error("인식된 부품이 없습니다.");
+      throw new Error("NO_PARTS_RECOGNIZED");
     }
     return extracted;
   } catch (error) {
-    if (error instanceof Error && error.message === "인식된 부품이 없습니다.") {
-      throw error;
+    console.error("[extractParts]", error);
+
+    if (error instanceof Error) {
+      if (error.message === "NO_PARTS_RECOGNIZED") {
+        throw new Error("인식된 부품이 없습니다.");
+      }
+      if (error.message === "ANTHROPIC_API_KEY_MISSING") {
+        throw new Error("분석 API 키가 설정되지 않았습니다. 관리자에게 문의해주세요.");
+      }
+      if (error.message.startsWith("CLAUDE_API_ERROR:")) {
+        throw new Error("AI 분석 서비스에 일시적인 오류가 있습니다. 잠시 후 다시 시도해주세요.");
+      }
+      if (error.message === "CLAUDE_EMPTY_RESPONSE" || error.message === "EXTRACTION_JSON_NOT_FOUND") {
+        throw new Error("부품 추출 실패. 더 자세한 매물 정보를 입력해주세요.");
+      }
     }
+
     throw new Error("부품 추출 실패. 더 자세한 매물 정보를 입력해주세요.");
   }
+}
+
+async function resolveOneExtractedPart(
+  p: {
+    partName: string;
+    category: string;
+    condition: string;
+    conditionKo: string;
+    approximated?: boolean;
+  },
+  autoCreatedPartIds: Set<string>,
+): Promise<AnalyzedPart> {
+  let partId = await resolvePartId(p.partName, p.category);
+
+  if (!partId) {
+    const createdPartId = await ensurePartForUnmatched(p.partName, p.category);
+    if (createdPartId) {
+      partId = createdPartId;
+      autoCreatedPartIds.add(createdPartId);
+    }
+  }
+
+  if (partId) {
+    const dbPrice = await resolveUsedPriceFromDb(partId, p.partName, p.category);
+    if (dbPrice) {
+      return attachPriceSource(
+        {
+          ...p,
+          partId,
+          approximated: false,
+          usedLow: dbPrice.usedLow,
+          usedMid: dbPrice.usedMid,
+          usedHigh: dbPrice.usedHigh,
+          newPrice: dbPrice.newPrice,
+          sampleSize: dbPrice.sampleSize,
+          buyoutBasedLow: dbPrice.buyoutBasedLow,
+        },
+        "db",
+      );
+    }
+  }
+
+  return attachPriceSource(
+    {
+      ...p,
+      partId,
+      approximated: false,
+      usedLow: null,
+      usedMid: null,
+      usedHigh: null,
+      newPrice: null,
+      sampleSize: 0,
+    },
+    "ai",
+  );
 }
 
 async function resolvePrices(
@@ -1907,110 +2028,63 @@ async function resolvePrices(
     };
   }
 
-  const resolvedParts: AnalyzedPart[] = [];
   const autoCreatedPartIds = new Set<string>();
 
-  for (const p of extracted.parts) {
-    let partId = await resolvePartId(p.partName, p.category);
+  let resolvedParts = await Promise.all(
+    extracted.parts.map((p) => resolveOneExtractedPart(p, autoCreatedPartIds)),
+  );
 
-    if (!partId) {
-      const createdPartId = await ensurePartForUnmatched(p.partName, p.category);
-      if (createdPartId) {
-        partId = createdPartId;
-        autoCreatedPartIds.add(createdPartId);
-      }
-    }
+  resolvedParts = await Promise.all(
+    resolvedParts.map(async (part) => {
+      if (part.category !== "RAM" || part.usedMid !== null) return part;
 
-    if (partId) {
-      const dbPrice = await resolveUsedPriceFromDb(partId, p.partName, p.category);
+      const ramPartId = part.partId ?? (await findRamPartId(part.partName));
+      if (!ramPartId) return part;
 
-      if (dbPrice) {
-        resolvedParts.push(
-          attachPriceSource(
-            {
-              ...p,
-              partId,
-              approximated: false,
-              usedLow: dbPrice.usedLow,
-              usedMid: dbPrice.usedMid,
-              usedHigh: dbPrice.usedHigh,
-              newPrice: dbPrice.newPrice,
-              sampleSize: dbPrice.sampleSize,
-              buyoutBasedLow: dbPrice.buyoutBasedLow,
-            },
-            "db",
-          ),
-        );
-        continue;
-      }
-    }
+      const dbPrice = await resolveUsedPriceFromDb(ramPartId, part.partName, part.category);
+      if (!dbPrice) return part;
 
-    resolvedParts.push(
-      attachPriceSource(
+      return attachPriceSource(
         {
-          ...p,
-          partId,
+          ...part,
+          partId: ramPartId,
           approximated: false,
-          usedLow: null,
-          usedMid: null,
-          usedHigh: null,
-          newPrice: null,
-          sampleSize: 0,
+          usedLow: dbPrice.usedLow,
+          usedMid: dbPrice.usedMid,
+          usedHigh: dbPrice.usedHigh,
+          newPrice: dbPrice.newPrice,
+          sampleSize: dbPrice.sampleSize,
+          buyoutBasedLow: dbPrice.buyoutBasedLow,
         },
-        "ai",
-      ),
-    );
-  }
+        "db",
+      );
+    }),
+  );
 
-  for (let i = 0; i < resolvedParts.length; i += 1) {
-    const part = resolvedParts[i];
-    if (part.category !== "RAM" || part.usedMid !== null) continue;
+  resolvedParts = await Promise.all(
+    resolvedParts.map(async (part) => {
+      if (part.usedMid !== null) return part;
 
-    const ramPartId = part.partId ?? (await findRamPartId(part.partName));
-    if (!ramPartId) continue;
+      const approx = await resolveApproximatePrice(part.partName, part.category);
+      if (!approx) return part;
 
-    const dbPrice = await resolveUsedPriceFromDb(ramPartId, part.partName, part.category);
-    if (!dbPrice) continue;
-
-    resolvedParts[i] = attachPriceSource(
-      {
-        ...part,
-        partId: ramPartId,
-        approximated: false,
-        usedLow: dbPrice.usedLow,
-        usedMid: dbPrice.usedMid,
-        usedHigh: dbPrice.usedHigh,
-        newPrice: dbPrice.newPrice,
-        sampleSize: dbPrice.sampleSize,
-        buyoutBasedLow: dbPrice.buyoutBasedLow,
-      },
-      "db",
-    );
-  }
-
-  for (let i = 0; i < resolvedParts.length; i += 1) {
-    const part = resolvedParts[i];
-    if (part.usedMid !== null) continue;
-
-    const approx = await resolveApproximatePrice(part.partName, part.category);
-    if (!approx) continue;
-
-    resolvedParts[i] = attachPriceSource(
-      {
-        ...part,
-        partId: approx.partId,
-        partName: `${part.partName} (유사 부품 기준)`,
-        approximated: true,
-        usedLow: approx.usedLow,
-        usedMid: approx.usedMid,
-        usedHigh: approx.usedHigh,
-        newPrice: approx.newPrice,
-        sampleSize: approx.sampleSize,
-        buyoutBasedLow: approx.buyoutBasedLow,
-      },
-      "db",
-    );
-  }
+      return attachPriceSource(
+        {
+          ...part,
+          partId: approx.partId,
+          partName: `${part.partName} (유사 부품 기준)`,
+          approximated: true,
+          usedLow: approx.usedLow,
+          usedMid: approx.usedMid,
+          usedHigh: approx.usedHigh,
+          newPrice: approx.newPrice,
+          sampleSize: approx.sampleSize,
+          buyoutBasedLow: approx.buyoutBasedLow,
+        },
+        "db",
+      );
+    }),
+  );
 
   return {
     parts: resolvedParts,
@@ -2139,24 +2213,6 @@ async function calculateResult(
 
   applyExtractedEstimatesToResolved(resolvedParts, extracted.parts);
 
-  for (const part of resolvedParts) {
-    if (!part.partId || !resolved.autoCreatedPartIds.has(part.partId)) continue;
-    if (part.priceSource !== "ai" || !part.usedMid || part.usedMid <= 0) continue;
-    try {
-      await saveAiEstimatedBandSnapshots(
-        part.partId,
-        part.partName,
-        part.category,
-        part.condition,
-        part.usedLow,
-        part.usedMid,
-        part.usedHigh,
-      );
-    } catch (error) {
-      console.error("AI_ESTIMATED 저장 실패:", error);
-    }
-  }
-
   const missingSystemParts = missingSystemPartCategories(extracted.parts);
   if (missingSystemParts.length > 0) {
     try {
@@ -2261,40 +2317,8 @@ async function validatePrices(
   };
 }
 
-async function persistAnalysisResult(
-  result: AnalyzeResult,
-  autoCreatedPartIds: Set<string>,
-): Promise<void> {
-  if (result.analysisMode === "used") {
-    try {
-      for (const part of result.parts) {
-        if (!part.partId || !part.usedMid) continue;
-        if (autoCreatedPartIds.has(part.partId) && part.priceSource === "ai") continue;
-        if (part.priceSource === "formula") continue;
-        if (part.priceSource === "validated") continue;
-        if (!shouldPersistUsedPrice(part.usedMid, part.partName, part.category)) continue;
-        const range = priceRangeByCategory(part.category);
-        if (part.usedMid < range.min || part.usedMid > range.max) continue;
-        if (!isSanePriceForCategory(part.usedMid, part.category)) continue;
-        await prisma.priceSnapshot.create({
-          data: {
-            partId: part.partId,
-            sourceType: (part.priceSource === "ai" ? "AI_ESTIMATED" : "MANUAL") as any,
-            priceKrw: part.usedMid,
-            condition: (part.condition ?? "GOOD") as any,
-            rawText: JSON.stringify({
-              source: "auto-analyze",
-              method: part.priceSource,
-              label: part.priceSourceLabel,
-            }),
-          },
-        });
-      }
-    } catch (error) {
-      console.error("저장 실패:", error);
-    }
-  }
-
+async function persistAnalysisResult(result: AnalyzeResult): Promise<void> {
+  // 분석 결과를 price_snapshots에 자동 저장하지 않음 (AI/추정치 DB 오염 방지)
   await prisma.valuationRun
     .create({
       data: {
@@ -2342,8 +2366,10 @@ export async function POST(req: NextRequest) {
 
         send({ pct: 90, step: "validate", message: "가격 검증 중..." });
         const validated = await validatePrices(calculated, analysisMode);
-        await persistAnalysisResult(validated, resolved.autoCreatedPartIds);
         send({ pct: 100, step: "done", message: "분석 완료", result: validated });
+        void persistAnalysisResult(validated).catch((error) => {
+          console.error("분석 결과 저장 실패:", error);
+        });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "분석 중 오류가 발생했습니다.";
         send({ error: message });
