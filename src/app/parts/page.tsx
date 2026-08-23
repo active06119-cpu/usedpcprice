@@ -7,6 +7,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { toSlug } from "@/lib/slug";
 
+// 요청 시점에 렌더 (빌드 때 DB 안 찌름 → 배포 안정)
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "부품별 중고 시세 | PC시세",
   description:

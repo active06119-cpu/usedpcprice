@@ -4,6 +4,9 @@ import { ConsumerNav } from "@/components/ConsumerNav";
 import { isSchemaDriftError, normalizeMarketListing } from "@/lib/market-listing-meta";
 import { prisma } from "@/lib/prisma";
 
+// 요청 시점에 렌더 (빌드 때 DB 안 찌르고, 항상 최신 매물 표시)
+export const dynamic = "force-dynamic";
+
 const CONDITION_KO: Record<string, string> = {
   NEW: "새상품",
   LIKE_NEW: "개봉만",

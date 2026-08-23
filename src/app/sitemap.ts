@@ -32,18 +32,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const parts = await prisma.part.findMany({
-    where: { isActive: true },
-    select: { modelName: true, updatedAt: true },
-    orderBy: { updatedAt: "desc" },
-  });
-
-  const dynamicPartUrls: MetadataRoute.Sitemap = parts.map((part) => ({
-    url: `${baseUrl}/parts/${toSlug(part.modelName)}`,
-    lastModified: part.updatedAt,
-    changeFrequency: "daily",
-    priority: 0.7,
-  }));
+  // DB가 없거나 접속 실패해도 빌드가 깨지지 않게 (부품 URL은 생략)
+  let dynamicPartUrls: MetadataRoute.Sitemap = [];
+  try {
+    const parts = await prisma.part.findMany({
+      where: { isActive: true },
+      select: { modelName: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    dynamicPartUrls = parts.map((part) => ({
+      url: `${baseUrl}/parts/${toSlug(part.modelName)}`,
+      lastModified: part.updatedAt,
+      changeFrequency: "daily",
+      priority: 0.7,
+    }));
+  } catch (error) {
+    console.error("[sitemap] 부품 목록 조회 실패, 기본 sitemap만 반환:", error);
+  }
 
   return [...staticUrls, ...dynamicPartUrls];
 }
