@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { guardAdminRequest } from "@/lib/admin-guard";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { partitionPersistable } from "@/lib/ingest/used-listing-guard";
 
 type ParsedPart = {
   category: "CPU" | "GPU" | "RAM" | "SSD" | "HDD" | "MAINBOARD" | "PSU" | "CASE" | "ETC";
@@ -85,8 +86,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 저장 문턱: 가격 null·시세 범위 밖·엉터리 이름은 DB에 넣지 않는다.
+    const normalized = body.parts.map((part) => ({
+      part,
+      category: toPartCategory(part.category),
+      name: part.name,
+      priceKrw: typeof part.price === "number" ? part.price : null,
+    }));
+    const { kept, rejected } = partitionPersistable(normalized);
+
+    if (kept.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        message: `유효한 부품이 없어 저장하지 않았습니다. (이상치 ${rejected.length}건 제거)`,
+        inserted: 0,
+        rejected: rejected.length,
+      }, { status: 422 });
+    }
+
     const created = await prisma.$transaction(
-      body.parts.map((part) =>
+      kept.map((row) =>
         prisma.partsPrice.create({
           data: {
             sourceUrl: body.sourceUrl,
@@ -95,10 +114,10 @@ export async function POST(req: NextRequest) {
             rawText: body.rawText,
             listedAt: body.registeredAt ? new Date(body.registeredAt) : null,
             saleStatus: body.soldStatus,
-            category: toPartCategory(part.category) as any,
-            name: part.name,
-            priceKrw: typeof part.price === "number" ? part.price : null,
-            condition: toPartCondition(part.condition) as any,
+            category: row.category as any,
+            name: row.name,
+            priceKrw: row.priceKrw,
+            condition: toPartCondition(row.part.condition) as any,
           },
         }),
       ),
@@ -108,6 +127,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       skipped: false,
       inserted: created.length,
+      rejected: rejected.length,
     });
   } catch (error) {
     console.error("url save failed:", error);

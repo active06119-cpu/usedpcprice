@@ -2,6 +2,7 @@ import { PartCondition } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { resolveLayeredUsedBand, basisLabel } from "@/lib/engine/pricing/layered";
 
 type Params = {
   params: Promise<{ slug: string }>;
@@ -69,8 +70,10 @@ export async function GET(req: Request, { params }: Params) {
 
     partName = part.fullName;
 
-    let usedSnapshots: Array<{ priceKrw: number; condition: PartCondition; capturedAt: Date }> = [];
+    let usedSnapshots: Array<{ priceKrw: number; condition: PartCondition | null; capturedAt: Date }> = [];
     let newPrice: number | null = null;
+    let latestBuyoutKrw: number | null = null;
+    let latestManualKrw: number | null = null;
     let conditionSummary: Array<{ condition: PartCondition; priceKrw: number | null; sampleSize: number }> =
       [];
 
@@ -102,6 +105,25 @@ export async function GET(req: Request, { params }: Params) {
       });
 
       newPrice = newSnapshot?.priceKrw ?? null;
+
+      // 1층 기준선용: 최신 매입가(BUYOUT)
+      const buyoutSnapshot = await prisma.priceSnapshot.findFirst({
+        where: {
+          partId: part.id,
+          sourceType: { in: ["BUYOUT"] as any },
+        },
+        orderBy: { capturedAt: "desc" },
+        select: { priceKrw: true },
+      });
+      latestBuyoutKrw = buyoutSnapshot?.priceKrw ?? null;
+
+      // 0층 최우선: 손수 입력값(MANUAL)
+      const manualSnapshot = await prisma.priceSnapshot.findFirst({
+        where: { partId: part.id, sourceType: { in: ["MANUAL"] as any } },
+        orderBy: { capturedAt: "desc" },
+        select: { priceKrw: true },
+      });
+      latestManualKrw = manualSnapshot?.priceKrw ?? null;
 
       conditionSummary = await Promise.all(
         [PartCondition.NEW, PartCondition.LIKE_NEW, PartCondition.GOOD, PartCondition.FAIR].map(
@@ -142,10 +164,19 @@ export async function GET(req: Request, { params }: Params) {
       );
     }
 
-    const usedPrices = usedSnapshots.map((s) => s.priceKrw).sort((a, b) => a - b);
-    const usedMid = quantile(usedPrices, 0.5);
-    const usedLow = quantile(usedPrices, 0.1);
-    const usedHigh = quantile(usedPrices, 0.9);
+    // 층 구조 시세: 1층 매입가×마진 기준선 + 2층 실매물 보정
+    const usedPrices = usedSnapshots.map((s) => s.priceKrw);
+    const band = resolveLayeredUsedBand({
+      buyoutKrw: latestBuyoutKrw,
+      category: part.category,
+      listingPrices: usedPrices,
+      manualKrw: latestManualKrw,
+      newPriceKrw: newPrice,
+    });
+
+    const usedMid = band?.usedMid ?? null;
+    const usedLow = band?.usedLow ?? null;
+    const usedHigh = band?.usedHigh ?? null;
     const depreciationPct =
       usedMid && newPrice && newPrice > 0
         ? Math.max(0, Math.round((1 - usedMid / newPrice) * 100))
@@ -165,7 +196,10 @@ export async function GET(req: Request, { params }: Params) {
         usedHigh,
         newPrice,
         depreciationPct,
-        sampleSize: usedPrices.length,
+        sampleSize: band?.listingSampleSize ?? 0,
+        basis: band?.basis ?? null,
+        basisLabel: band ? basisLabel(band) : null,
+        buyoutKrw: latestBuyoutKrw,
       },
       trend: usedSnapshots.map((s) => ({
         capturedAt: s.capturedAt,

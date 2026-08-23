@@ -10,6 +10,7 @@ type ParsedRow = {
 };
 
 export default function BulkImportPage() {
+  const adminToken = process.env.NEXT_PUBLIC_ADMIN_API_TOKEN ?? "";
   const [input, setInput] = useState("");
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,7 @@ export default function BulkImportPage() {
       setMessage(null);
       const res = await fetch("/api/admin/parse-listings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({ rawText: input }),
       });
       const data = (await res.json()) as { ok: boolean; items?: ParsedRow[]; message?: string };
@@ -44,7 +45,7 @@ export default function BulkImportPage() {
       setMessage(null);
       const res = await fetch("/api/admin/save-listings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({ items: parsed }),
       });
       const data = (await res.json()) as { ok: boolean; inserted?: number; message?: string };

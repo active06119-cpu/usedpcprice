@@ -1,78 +1,55 @@
-import { PartCondition, ValuationType } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-import { computeBandForPart, findPartByAliasOrName } from "@/lib/valuation";
 import { prisma } from "@/lib/prisma";
-import { partValuationSchema } from "@/lib/schemas";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { basisLabel } from "@/lib/engine/pricing/layered";
+import { findPartId, resolvePartUsedBand } from "@/lib/engine/pricing/resolve-part";
 
+// 소비자용 단일 부품 시세 조회 (인증 없음, IP 레이트리밋)
 export async function POST(req: Request) {
   try {
-    const parsed = partValuationSchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: parsed.error.issues[0]?.message ?? "입력값이 올바르지 않습니다.",
-        },
-        { status: 400 },
-      );
-    }
-    const body = parsed.data;
-    const modelName = body.modelName.trim();
-
-    const part = await findPartByAliasOrName(modelName);
-    if (!part) {
-      return NextResponse.json({ ok: false, message: "매칭되는 부품을 찾지 못했습니다." }, { status: 404 });
+    const ip = getClientIp(req);
+    const rate = checkRateLimit(`public:part-price:${ip}`, 20, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json({ ok: false, message: "요청이 너무 많습니다." }, { status: 429 });
     }
 
-    const condition = body.condition ? PartCondition[body.condition] : PartCondition.GOOD;
-    const monthsUsed = body.monthsUsed;
-    const band = await computeBandForPart(part.id, condition, monthsUsed);
+    const body = (await req.json()) as { name?: string };
+    const name = body.name?.trim();
+    if (!name) {
+      return NextResponse.json({ ok: false, message: "부품명을 입력해주세요." }, { status: 400 });
+    }
 
-    const run = await prisma.valuationRun.create({
-      data: {
-        runType: ValuationType.SINGLE_PART,
-        inputSpecJson: {
-          modelName,
-          condition,
-          monthsUsed: monthsUsed ?? null,
-        },
-        totalFairLow: band.low,
-        totalFairMid: band.mid,
-        totalFairHigh: band.high,
-        verdict: "FAIR",
-      },
-    });
+    // 이름/별칭 정확 매칭 (제네릭 오매칭 방지 위해 loose=false)
+    const partId = await findPartId(prisma, name, "", { loose: false });
+    if (!partId) {
+      return NextResponse.json({ ok: true, found: false, query: name });
+    }
 
-    const usedSnapshots = await prisma.priceSnapshot.findMany({
-      where: { partId: part.id },
-      orderBy: { capturedAt: "desc" },
-      take: 20,
-      select: { id: true },
+    const part = await prisma.part.findUnique({
+      where: { id: partId },
+      select: { fullName: true, category: true },
     });
-
-    await prisma.valuationItem.create({
-      data: {
-        valuationRunId: run.id,
-        partId: part.id,
-        rawPartLabel: modelName,
-        fairLowKrw: band.low,
-        fairMidKrw: band.mid,
-        fairHighKrw: band.high,
-        snapshotIds: usedSnapshots.map((s) => s.id),
-        adjustmentsApplied: {
-          condition,
-          monthsUsed: monthsUsed ?? null,
-        },
-      },
-    });
+    const band = part ? await resolvePartUsedBand(prisma, partId, part.category) : null;
+    if (!part || !band) {
+      return NextResponse.json({ ok: true, found: false, query: name });
+    }
 
     return NextResponse.json({
       ok: true,
-      valuationRunId: run.id,
+      found: true,
+      name: part.fullName,
+      category: part.category,
+      usedLow: band.usedLow,
+      usedMid: band.usedMid,
+      usedHigh: band.usedHigh,
+      basis: basisLabel(band),
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ ok: false, message: "단일 부품 시세 계산에 실패했습니다." }, { status: 500 });
+    console.error("[public part-price]", error);
+    return NextResponse.json(
+      { ok: false, message: error instanceof Error ? error.message : "조회에 실패했습니다." },
+      { status: 500 },
+    );
   }
 }

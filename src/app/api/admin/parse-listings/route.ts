@@ -6,6 +6,25 @@ import { parseListingText } from "@/lib/parser/listing-parser";
 import { guardAdminRequest } from "@/lib/admin-guard";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
+/** 동시 실행 개수를 제한하며 매핑한다 (Claude API rate limit 방지). */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      results[idx] = await fn(items[idx]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 function extractAskingPriceKrw(text: string): number | undefined {
   const manwonMatch = text.match(/(\d[\d,]*)\s*만원/);
   if (manwonMatch) {
@@ -46,8 +65,7 @@ export async function POST(req: Request) {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
-    const items = await Promise.all(
-      lines.map(async (line) => {
+    const items = await mapLimit(lines, 3, async (line) => {
         try {
           const extracted = await extractListingFromText(line);
           const aliasMatches = await Promise.all(
@@ -104,8 +122,7 @@ export async function POST(req: Request) {
             ).slice(0, 10),
           };
         }
-      }),
-    );
+      });
 
     return NextResponse.json({ ok: true, items });
   } catch (error) {

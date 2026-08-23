@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { partitionPersistable } from "@/lib/ingest/used-listing-guard";
 
 type ParsedPart = {
   category: "CPU" | "GPU" | "RAM" | "SSD" | "HDD" | "MAINBOARD" | "PSU" | "CASE" | "ETC";
@@ -83,7 +84,7 @@ async function callClaude(system: string, user: string): Promise<string> {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5",
       max_tokens: 2000,
       system,
       messages: [{ role: "user", content: user }],
@@ -174,8 +175,26 @@ export async function POST(req: NextRequest) {
     const listedAt = parseListedAt(crawled.rawText);
     const saleStatus = parseSaleStatus(crawled.rawText);
 
+    // 저장 문턱: 가격 null·시세 범위 밖·엉터리 이름은 DB에 넣지 않는다.
+    const normalized = parts.map((part) => ({
+      part,
+      category: toPartCategory(part.category),
+      name: part.name,
+      priceKrw: typeof part.price === "number" ? part.price : null,
+    }));
+    const { kept, rejected } = partitionPersistable(normalized);
+
+    if (kept.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        message: `유효한 부품이 없어 저장하지 않았습니다. (이상치 ${rejected.length}건 제거)`,
+        inserted: 0,
+        rejected: rejected.length,
+      }, { status: 422 });
+    }
+
     const created = await prisma.$transaction(
-      parts.map((part) =>
+      kept.map((row) =>
         prisma.partsPrice.create({
           data: {
             sourceUrl,
@@ -184,10 +203,10 @@ export async function POST(req: NextRequest) {
             rawText: crawled.rawText,
             listedAt,
             saleStatus,
-            category: toPartCategory(part.category) as any,
-            name: part.name,
-            priceKrw: typeof part.price === "number" ? part.price : null,
-            condition: toPartCondition(part.condition) as any,
+            category: row.category as any,
+            name: row.name,
+            priceKrw: row.priceKrw,
+            condition: toPartCondition(row.part.condition) as any,
           },
         }),
       ),
@@ -197,6 +216,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       skipped: false,
       inserted: created.length,
+      rejected: rejected.length,
       saleStatus,
       listedAt,
     });
