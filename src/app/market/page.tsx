@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { ConsumerNav } from "@/components/ConsumerNav";
 import { isSchemaDriftError, normalizeMarketListing } from "@/lib/market-listing-meta";
 import { prisma } from "@/lib/prisma";
 
@@ -72,8 +71,6 @@ export default async function MarketPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-10">
-      <ConsumerNav active="/market" />
-
       <div className="mb-6 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900">장터</h1>
         <p className="mt-2 text-zinc-600">적정가로 검증된 중고 매물. 호구 걱정 없이 둘러보세요.</p>

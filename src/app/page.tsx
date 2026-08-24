@@ -25,7 +25,7 @@ export default function Home() {
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-4 py-16">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-zinc-900">시세로</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-zinc-900">중고컴퓨터 시세계산기</h1>
         <p className="mt-3 text-lg text-zinc-600">
           중고 컴퓨터, 호구 잡히지 마세요.
           <br />

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "중고 컴퓨터 시세 계산기",
-  description: "중고 데스크탑/부품 공정 가격 추정 MVP",
+  title: "중고컴퓨터 시세계산기",
+  description: "중고 컴퓨터·부품 적정가를 확인하세요. 호구 잡히지 말고 사기 전에 시세 확인.",
 };
 
 export default function RootLayout({

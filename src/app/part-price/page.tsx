@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 
-import { ConsumerNav } from "@/components/ConsumerNav";
-
 type Result = {
   ok: boolean;
   found?: boolean;
@@ -52,8 +50,6 @@ export default function PartPricePage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-4 py-10">
-      <ConsumerNav active="/part-price" />
-
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900">부품 시세 계산기</h1>
         <p className="mt-2 text-zinc-600">부품 이름만 넣으면 중고 시세를 알려드려요.</p>
