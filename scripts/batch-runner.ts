@@ -1,9 +1,9 @@
 // ============================================================
-// scripts/import/batch-runner.ts
+// scripts/batch-runner.ts
 // Twice-daily cron script: npm run import:batch
-// Add to package.json scripts:
-//   "import:batch": "ts-node scripts/import/batch-runner.ts"
-// Cron: 0 9,21 * * * (9am and 9pm KST)
+// Cron: 0 9,21 * * * KST via .github/workflows/import-batch.yml
+// Default source: NAVER_SHOPPING (official API)
+// Override: IMPORT_SOURCES=NAVER_SHOPPING,BUNJANG
 // ============================================================
 
 import "dotenv/config";
@@ -15,23 +15,10 @@ import { runBunjangImport } from "./import/bunjang";
 import { runDanawaImport } from "./import/danawa";
 import { runDaangnImport } from "./import/daangn";
 import { runNaverShoppingImport } from "./import/naver-shopping";
+import { canPersistSnapshot } from "../src/lib/ingest/snapshot-guard";
 
 const prisma = new PrismaClient();
 const ENABLE_DAANGN_IMPORT = process.env.ENABLE_DAANGN_IMPORT === "true";
-
-// ============================================================
-// BATCH RUNNER ARCHITECTURE
-//
-// This script is intentionally thin — it only manages ImportBatch
-// lifecycle. Actual scrapers/importers are plugged in via the
-// importers map below. Each importer is responsible for:
-//   1. Fetching raw data from its source
-//   2. Returning an array of RawSnapshot objects
-//   3. The runner handles DB insertion and error capture
-//
-// In v1 MVP, importers may be stubs returning empty arrays until
-// real scrapers are built. That's fine — seed data covers v1.
-// ============================================================
 
 type SourceRunner = (batchId: string) => Promise<number>;
 type BatchResult = {
@@ -53,6 +40,13 @@ const sourceRunners: Partial<Record<SnapshotSource, SourceRunner>> = {
   [SnapshotSource.DAANGN]: runDaangnImport,
   [SnapshotSource.NAVER_SHOPPING]: runNaverShoppingImport,
 };
+
+const ALLOWED_SOURCES = new Set<SnapshotSource>([
+  SnapshotSource.NAVER_SHOPPING,
+  SnapshotSource.BUNJANG,
+  SnapshotSource.DANAWA,
+  SnapshotSource.DAANGN,
+]);
 
 const CATEGORY_PRICE_RANGE: Record<string, [number, number]> = {
   GPU: [20_000, 5_000_000],
@@ -85,6 +79,22 @@ function formatDuration(ms: number): string {
   const min = Math.floor(sec / 60);
   const remainSec = sec % 60;
   return `${min}분 ${remainSec}초`;
+}
+
+export function resolveImportSources(
+  raw = process.env.IMPORT_SOURCES ?? "NAVER_SHOPPING",
+  enableDaangn = ENABLE_DAANGN_IMPORT,
+): SnapshotSource[] {
+  const requested = raw
+    .split(",")
+    .map((value) => value.trim().toUpperCase())
+    .filter(Boolean);
+
+  return requested.filter((value): value is SnapshotSource => {
+    if (!ALLOWED_SOURCES.has(value as SnapshotSource)) return false;
+    if (value === SnapshotSource.DAANGN && !enableDaangn) return false;
+    return true;
+  });
 }
 
 export async function runWithRetry<T>(
@@ -169,9 +179,23 @@ async function applyQualityFilterForBatch(batchId: string): Promise<number> {
   });
   if (snapshots.length === 0) return 0;
 
+  const rejectedIds: string[] = [];
   const grouped = new Map<string, Array<{ id: string; raw: QualitySnapshot }>>();
+
   for (const s of snapshots) {
-    const category = s.part.category;
+    if (
+      !canPersistSnapshot({
+        name: s.part.fullName,
+        category: s.part.category,
+        priceKrw: s.priceKrw,
+        condition: s.condition,
+      })
+    ) {
+      rejectedIds.push(s.id);
+      console.log(`[FILTERED] ${s.part.fullName} — persist guard`);
+      continue;
+    }
+
     const raw: QualitySnapshot = {
       partId: s.partId,
       sourceUrl: s.sourceUrl,
@@ -180,12 +204,10 @@ async function applyQualityFilterForBatch(batchId: string): Promise<number> {
       rawText: s.rawText,
       partName: s.part.fullName,
     };
-    const list = grouped.get(category) ?? [];
+    const list = grouped.get(s.part.category) ?? [];
     list.push({ id: s.id, raw });
-    grouped.set(category, list);
+    grouped.set(s.part.category, list);
   }
-
-  const rejectedIds: string[] = [];
 
   for (const [category, entries] of grouped) {
     const idByObject = new Map<QualitySnapshot, string>();
@@ -318,28 +340,23 @@ async function runSource(source: SnapshotSource): Promise<BatchResult> {
 
 async function main() {
   console.log(`🔄 Import batch started at ${new Date().toISOString()}`);
+  const sources = resolveImportSources();
+  console.log(`  sources=${sources.join(", ") || "(none)"}`);
   if (!ENABLE_DAANGN_IMPORT) {
     console.log(
       "  ℹ️ [DAANGN] disabled by default (set ENABLE_DAANGN_IMPORT=true to enable)",
     );
   }
 
-  const sources: SnapshotSource[] = [
-    SnapshotSource.NAVER_SHOPPING, // 네이버 쇼핑 (신품 API, 빠름)
-    SnapshotSource.BUNJANG, // 번개장터 (XHR API)
-    SnapshotSource.DANAWA, // 다나와 (Playwright)
-  ];
-  if (ENABLE_DAANGN_IMPORT) {
-    // 당근은 현재 접근/노출 정책 변경 가능성이 있어 기본 비활성화.
-    sources.splice(2, 0, SnapshotSource.DAANGN);
-  }
-
+  const before = await prisma.priceSnapshot.count();
   const results: BatchResult[] = [];
   for (const source of sources) {
     const result = await runSource(source);
     results.push(result);
   }
+  const after = await prisma.priceSnapshot.count();
   printBatchReport(results);
+  console.log(`📊 snapshots ${before} -> ${after} (Δ${after - before})`);
   console.log("✅ All batches complete");
 }
 
