@@ -3,11 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { ADMIN_COOKIE, getRequiredAdminToken, tokensEqual } from "@/lib/admin-auth";
 
-const PUBLIC_ADMIN_API = new Set([
-  "/api/admin/login",
-  "/api/admin/url-analyze",
-  "/api/admin/url-save",
-]);
+const PUBLIC_ADMIN_API = new Set(["/api/admin/login"]);
 
 function cookieToken(req: NextRequest): string {
   return req.cookies.get(ADMIN_COOKIE)?.value ?? "";

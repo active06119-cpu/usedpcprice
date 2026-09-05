@@ -1,4 +1,4 @@
-﻿# 중고 컴퓨터 시세 계산기 MVP
+# 중고 컴퓨터 시세 계산기 MVP
 
 한국어 기반 중고 데스크탑/부품 공정가 추정 앱입니다.
 
@@ -16,7 +16,13 @@
 ```env
 DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require&pgbouncer=true&connection_limit=1"
 DIRECT_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require"
+ANTHROPIC_API_KEY="your_anthropic_api_key"
+ADMIN_API_TOKEN="long-random-server-only-token"
 ```
+
+- `ADMIN_API_TOKEN`은 서버 전용입니다. `NEXT_PUBLIC_`으로 노출하지 마세요.
+- 관리자 화면(`/admin`)은 로그인 후 httpOnly 쿠키로 인증됩니다.
+- 토큰이 없으면 `/admin`과 `/api/admin/*`는 fail-closed(401/로그인 리다이렉트)입니다.
 
 ## 로컬 실행
 
@@ -31,6 +37,18 @@ DIRECT_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/p
    - `npm run prisma:seed`
 5. 개발 서버 실행
    - `npm run dev`
+
+관리자 페이지: `http://localhost:3000/admin/login`
+
+## 공개 API 제한
+
+비용/남용 방지를 위해 공개 분석 API는 IP 기준으로 제한됩니다. (인스턴스 메모리 버킷)
+
+- `POST /api/analyze`: IP당 분당 8회, 본문 최대 8,000자
+- `POST /api/analyze-bulk`: 같은 버킷을 매물 개수만큼 소모, 본문 최대 20,000자, 한 번에 최대 10개
+- 초과 시 `429` + `Retry-After`
+
+`POST /api/market/import`는 크롤링 + Claude + DB 저장이라 관리자 인증이 필요합니다.
 
 ## 주요 스크립트
 

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import type { AnalyzeResult } from "@/app/api/analyze/route";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
 type SaveBody = {
   result?: AnalyzeResult;
@@ -45,6 +46,15 @@ async function createSharedResult(payload: Prisma.InputJsonValue): Promise<strin
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rate = checkRateLimit(`results-save:${ip}`, 20, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { ok: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+        { status: 429, headers: rateLimitHeaders(rate.retryAfterMs) },
+      );
+    }
+
     const body = (await req.json()) as SaveBody;
     const result = body.result;
     if (!result || !Array.isArray(result.parts)) {
