@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { findPartIdByAliases, persistGeneratedAliases } from "@/lib/ingest/part-match";
 import { aliasesCompatible } from "@/lib/ingest/part-alias";
+import { pickBestRamPartId, ramPartKey as ramSpecKey } from "@/lib/ingest/ram-match";
+import { isValidNewPrice } from "@/lib/engine/pricing";
 
 import { callClaude } from "./claude";
 import type { AnalyzedPart } from "./types";
