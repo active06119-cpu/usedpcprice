@@ -19,6 +19,8 @@ import {
   getCpuReferencePrice,
 } from "@/lib/engine/gpu-reference-prices";
 import { validateAndCleanPrices } from "@/lib/engine/price-validator";
+import { aliasesCompatible } from "@/lib/ingest/part-alias";
+import { findPartIdByAliases, persistGeneratedAliases } from "@/lib/ingest/part-match";
 
 import { callClaude } from "./claude";
 import type { AnalyzedPart, AnalyzeResult } from "./types";
@@ -638,10 +640,8 @@ function buildApproxKeyword(partName: string, category?: string): string {
   if (category !== "RAM" && category !== "SSD") {
     name = name.replace(/\b\d+(?:\.\d+)?\s*(GB|TB)\b/gi, "");
   }
-  return name
-    .replace(/\b(TI|SUPER|OC|LHR)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  // TI/SUPER are different SKUs; do not strip them.
+  return name.replace(/\s+/g, " ").trim();
 }
 
 async function resolveApproximatePrice(
@@ -659,16 +659,21 @@ async function resolveApproximatePrice(
   const keyword = buildApproxKeyword(partName, category);
   if (!keyword) return null;
 
-  const similarPart = await prisma.part.findFirst({
+  const similarParts = await prisma.part.findMany({
     where: {
       category: category as any,
+      isActive: true,
       OR: [
         { fullName: { contains: keyword, mode: "insensitive" } },
         { modelName: { contains: keyword, mode: "insensitive" } },
       ],
     },
-    select: { id: true },
+    select: { id: true, fullName: true, modelName: true },
+    take: 30,
   });
+  const similarPart = similarParts.find(
+    (part) => aliasesCompatible(partName, part.fullName) || aliasesCompatible(partName, part.modelName),
+  );
   if (!similarPart) return null;
 
   const resolved = await resolveUsedPriceFromDb(similarPart.id, partName, category);
@@ -1220,6 +1225,7 @@ async function ensurePartForUnmatched(partName: string, category: string): Promi
       },
       select: { id: true },
     });
+    await persistGeneratedAliases(part.id, partName);
     return part.id;
   } catch (error) {
     console.error("ensurePartForUnmatched upsert failed:", error);
@@ -1411,9 +1417,7 @@ function parseOptionalEstimate(value: unknown): number | null {
 }
 
 function partNamesMatch(a: string, b: string): boolean {
-  const left = a.toLowerCase();
-  const right = b.toLowerCase();
-  return left.includes(right) || right.includes(left);
+  return aliasesCompatible(a, b);
 }
 
 function parseExtractedEstimates(part: {
@@ -1678,43 +1682,13 @@ async function findRamPartId(partName: string): Promise<string | null> {
 
 async function resolvePartId(partName: string, category: string): Promise<string | null> {
   const cat = category.toUpperCase();
-  const nameLower = partName.toLowerCase();
 
   if (cat === "RAM") {
     const ramId = await findRamPartId(partName);
     if (ramId) return ramId;
   }
 
-  const aliasRows = await prisma.partAlias.findMany({
-    where: {
-      OR: [
-        { alias: { contains: nameLower } },
-        { alias: { equals: nameLower } },
-      ],
-    },
-    select: { partId: true, alias: true, part: { select: { category: true } } },
-    take: 20,
-  });
-
-  const aliasHit = aliasRows.find(
-    (row) =>
-      row.part.category === cat &&
-      (nameLower.includes(row.alias) || row.alias.includes(nameLower)),
-  );
-  if (aliasHit) return aliasHit.partId;
-
-  const part = await prisma.part.findFirst({
-    where: {
-      category: cat as any,
-      OR: [
-        { fullName: { contains: partName, mode: "insensitive" } },
-        { modelName: { contains: partName, mode: "insensitive" } },
-      ],
-    },
-    select: { id: true },
-  });
-
-  return part?.id ?? null;
+  return findPartIdByAliases(partName, cat);
 }
 
 const ANALYSIS_MODE_LABEL: Record<AnalyzeResult["analysisMode"], string> = {
