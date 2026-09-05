@@ -1,0 +1,38 @@
+name: apply-analyze-rate-limit
+
+on:
+  push:
+    paths:
+      - "patches/analyze-rate-limit.patch"
+      - ".github/workflows/apply-analyze-rate-limit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply patch and clean up
+        run: |
+          set -euo pipefail
+          if [ ! -f patches/analyze-rate-limit.patch ]; then
+            echo "patch already applied"
+            exit 0
+          fi
+          git apply patches/analyze-rate-limit.patch
+          rm -f patches/analyze-rate-limit.patch
+          rm -f .github/workflows/apply-analyze-rate-limit.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "Apply analyze rate limit and client 429 handling"
+          git push
