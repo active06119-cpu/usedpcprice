@@ -15,4 +15,7 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - run: npm test
+      - name: All unit tests
+        run: npm test -- --ci
+      - name: Ingest + analyze matching coverage
+        run: npx jest --ci src/lib/ingest src/lib/analyze/__tests__ src/lib/engine/pricing/__tests__/guards.test.ts
