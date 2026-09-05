@@ -32,6 +32,13 @@ describe("ramSpecsCompatible / pickBestRamPartId", () => {
     expect(pickBestRamPartId("램 16기가 DDR4", catalog)).toBe("ddr4-16");
   });
 
+  it("does not treat 2x16 kit as 16GB or speed as capacity", () => {
+    expect(pickBestRamPartId("DDR4 16GB", catalog)).toBe("ddr4-16");
+    expect(pickBestRamPartId("DDR4 16GB 3200", catalog)).toBe("ddr4-16");
+    expect(pickBestRamPartId("DDR4 32GB 2x16", catalog)).toBe("ddr4-32-kit");
+    expect(parseRamSpec("DDR5 32GB 6000").capacityGb).toBe(32);
+  });
+
   it("keeps generations incompatible", () => {
     expect(ramSpecsCompatible(parseRamSpec("DDR4 32GB"), parseRamSpec("DDR5 32GB"))).toBe(false);
     expect(pickBestRamPartId("DDR4 32GB", catalog.filter((row) => row.id.startsWith("ddr5")))).toBeNull();

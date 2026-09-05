@@ -29,94 +29,6 @@ export function buildMissingPartsWarnings(extractedParts: { category: string }[]
   return { warnings: missingWarnings, missingPartsWarning };
 }
 
-export const SYSTEM_PART_CATEGORIES = ["MOTHERBOARD", "PSU", "CASE"] as const;
-
-export function missingSystemPartCategories(parts: { category: string }[]): string[] {
-  const categories = new Set(parts.map((part) => String(part.category).toUpperCase()));
-  if (!categories.has("GPU") || !categories.has("CPU")) return [];
-
-  return SYSTEM_PART_CATEGORIES.filter((category) => !categories.has(category));
-}
-
-export function normalizeSystemPartCategory(raw: string): string | null {
-  const value = raw.toUpperCase();
-  if (value === "MOTHERBOARD" || value === "MAINBOARD" || value.includes("BOARD")) return "MOTHERBOARD";
-  if (value === "PSU" || value.includes("POWER")) return "PSU";
-  if (value === "CASE") return "CASE";
-  return null;
-}
-
-export function withEstimateLabel(partName: string): string {
-  const trimmed = partName.trim();
-  if (trimmed.includes("(추정)")) return trimmed;
-  return `${trimmed} (추정)`;
-}
-
-export async function estimateMissingSystemParts(
-  extractedParts: { partName: string; category: string }[],
-  missingCategories: string[],
-): Promise<AnalyzedPart[]> {
-  const cpu = extractedParts.find((part) => part.category === "CPU")?.partName ?? "CPU";
-  const gpu = extractedParts.find((part) => part.category === "GPU")?.partName ?? "GPU";
-  const missingLabels = missingCategories.map((category) => categoryKeyword(category)).join("/");
-
-  const aiRaw = await callClaude(
-    "너는 2025년 한국 중고 PC 부품 시세 전문가야. 번개장터·당근·중고나라 기준으로 JSON만 반환해.",
-    `CPU: ${cpu}\nGPU: ${gpu}\n\n위 CPU/GPU 조합에 맞는 평균적인 중고 ${missingLabels} 가격을 추정해줘.\n\n반드시 JSON만:\n{\n  "parts": [\n    {\n      "partName": "B650M 메인보드",\n      "category": "MOTHERBOARD",\n      "usedMid": 80000,\n      "usedLow": 70000,\n      "usedHigh": 90000\n    }\n  ]\n}`,
-  );
-
-  const cleaned = aiRaw.replace(/```json|```/g, "").trim();
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return [];
-
-  const parsed = JSON.parse(jsonMatch[0]) as {
-    parts?: any[];
-    prices?: any[];
-    items?: any[];
-  };
-  const rows: any[] = Array.isArray(parsed.parts)
-    ? parsed.parts
-    : parsed?.prices ?? parsed?.items ?? [];
-
-  const allowed = new Set(missingCategories);
-  const estimated: AnalyzedPart[] = [];
-
-  for (const row of rows) {
-    const category = normalizeSystemPartCategory(String(row.category ?? ""));
-    if (!category || !allowed.has(category)) continue;
-
-    const usedMid = Number(row.usedMid ?? row.price ?? row.usedPrice ?? 0);
-    if (!Number.isFinite(usedMid) || usedMid <= 0) continue;
-    if (!isSanePriceForCategory(usedMid, category)) continue;
-
-    const usedLow = Number(row.usedLow ?? Math.round(usedMid * 0.9));
-    const usedHigh = Number(row.usedHigh ?? Math.round(usedMid * 1.1));
-    const partName = withEstimateLabel(String(row.partName ?? categoryKeyword(category)));
-
-    estimated.push(
-      attachPriceSource(
-        {
-          partName,
-          category,
-          condition: "GOOD",
-          conditionKo: "사용감 적음",
-          approximated: true,
-          partId: null,
-          usedLow: usedLow > 0 ? usedLow : Math.round(usedMid * 0.9),
-          usedMid,
-          usedHigh: usedHigh > 0 ? usedHigh : Math.round(usedMid * 1.1),
-          newPrice: null,
-          sampleSize: 0,
-        },
-        "ai",
-      ),
-    );
-    allowed.delete(category);
-  }
-
-  return estimated;
-}
-
 export function extractBrandName(partName: string): string {
   const n = partName.toLowerCase();
   if (/\brtx\b|\bgtx\b|\bnvidia\b|\bgeforce\b/.test(n)) return "NVIDIA";
@@ -145,7 +57,7 @@ export function categoryKeyword(category: string): string {
     case "MOTHERBOARD":
       return "메인보드";
     case "PSU":
-      return "파워서플라이";
+      return "파워스플라이";
     case "CASE":
       return "PC케이스";
     case "COOLER":
@@ -293,4 +205,3 @@ export function summarizeTotals(parts: AnalyzedPart[]) {
     totalSampleSize: parts.reduce((sum, part) => sum + (part.sampleSize ?? 0), 0),
   };
 }
-
