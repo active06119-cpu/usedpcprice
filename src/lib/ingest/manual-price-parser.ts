@@ -6,7 +6,7 @@
  *
  * 서버(API 라우트)·스크립트 양쪽에서 쓰는 순수 파서 (prisma 의존 없음).
  */
-import { priceRangeByCategory } from "../engine/pricing/guards";
+import { shouldPersistUsedPrice } from "../engine/pricing/guards";
 import { isValidPartName } from "./used-listing-guard";
 
 export const MANUAL_CATEGORIES = [
@@ -15,7 +15,6 @@ export const MANUAL_CATEGORIES = [
 
 const CATEGORY_SET = new Set<string>(MANUAL_CATEGORIES);
 
-// 한글/약칭 카테고리도 받아준다
 const CATEGORY_ALIASES: Record<string, string> = {
   그래픽카드: "GPU", 그래픽: "GPU", VGA: "GPU", 지포스: "GPU",
   프로세서: "CPU", 씨피유: "CPU",
@@ -45,7 +44,7 @@ export function parseManualPriceText(text: string): {
   rows: ManualRow[];
   bad: ManualBadRow[];
 } {
-  const lines = text.replace(/^﻿/, "").split(/\r?\n/);
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
   const rows: ManualRow[] = [];
   const bad: ManualBadRow[] = [];
 
@@ -53,10 +52,8 @@ export function parseManualPriceText(text: string): {
     const line = idx + 1;
     const trimmed = raw.trim();
     if (!trimmed) return;
-    // 헤더 줄 스킵
     if (/name/i.test(trimmed) && /price/i.test(trimmed)) return;
 
-    // 탭 우선, 없으면 콤마로 분리
     const cells = (trimmed.includes("\t") ? trimmed.split("\t") : trimmed.split(","))
       .map((c) => c.trim());
     if (cells.length < 3) {
@@ -81,10 +78,8 @@ export function parseManualPriceText(text: string): {
       bad.push({ line, raw: trimmed, reason: "가격 이상" });
       return;
     }
-    // 손수 입력은 사람이 authority → 넓은 상식 범위(명백한 오타만 차단)
-    const range = priceRangeByCategory(category);
-    if (price < range.min || price > range.max) {
-      bad.push({ line, raw: trimmed, reason: `${category} 상식범위 밖(${price.toLocaleString()})` });
+    if (!shouldPersistUsedPrice(price, name, category)) {
+      bad.push({ line, raw: trimmed, reason: `${category} 시세 범위 밖(${price.toLocaleString()})` });
       return;
     }
 

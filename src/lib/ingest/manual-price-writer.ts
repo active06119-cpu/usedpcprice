@@ -8,6 +8,7 @@ import { PartCategory, PartCondition, SnapshotSource } from "@prisma/client";
 
 import { generateAliases } from "./part-alias";
 import type { ManualRow } from "./manual-price-parser";
+import { partitionPersistable, type RejectedRow } from "./used-listing-guard";
 
 export function extractBrand(name: string): string {
   const n = name.toLowerCase();
@@ -47,7 +48,6 @@ export async function findOrCreatePart(
     select: { id: true },
   });
 
-  // 표기 변형 매칭용 별칭 저장
   for (const alias of generateAliases(name)) {
     await prisma.partAlias.upsert({
       where: { partId_alias: { partId: created.id, alias } },
@@ -59,12 +59,24 @@ export async function findOrCreatePart(
   return created.id;
 }
 
+export type SaveManualResult = {
+  saved: number;
+  rejected: RejectedRow[];
+};
+
 export async function saveManualRows(
   prisma: PrismaClient,
   rows: ManualRow[],
-): Promise<number> {
+): Promise<SaveManualResult> {
+  const { kept, rejected } = partitionPersistable(
+    rows.map((row) => ({
+      ...row,
+      priceKrw: row.price,
+    })),
+  );
+
   let saved = 0;
-  for (const r of rows) {
+  for (const r of kept) {
     const partId = await findOrCreatePart(prisma, r.name, r.category);
     await prisma.priceSnapshot.deleteMany({
       where: { partId, sourceType: SnapshotSource.MANUAL },
@@ -78,7 +90,8 @@ export async function saveManualRows(
         rawText: JSON.stringify({ source: "manual", name: r.name, category: r.category }),
       },
     });
-    saved++;
+    saved += 1;
   }
-  return saved;
+
+  return { saved, rejected };
 }
