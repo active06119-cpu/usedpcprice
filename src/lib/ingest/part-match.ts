@@ -1,41 +1,11 @@
 import { prisma } from "@/lib/prisma";
 
 import {
-  aliasesCompatible,
   digitCore,
   generateAliases,
   primaryModelKey,
 } from "@/lib/ingest/part-alias";
-
-type AliasHit = {
-  partId: string;
-  alias: string;
-  fullName: string;
-  modelName: string;
-};
-
-function rankHit(hit: AliasHit, queryName: string, queryKey: string | null): number {
-  const candidateKey = primaryModelKey(hit.fullName) ?? primaryModelKey(hit.modelName);
-  let score = 0;
-  if (queryKey && candidateKey === queryKey) score += 100;
-  if (hit.alias === queryKey) score += 40;
-  if (generateAliases(queryName).includes(hit.alias)) score += 20;
-  score += Math.min(hit.alias.length, 20);
-  return score;
-}
-
-function pickBest(hits: AliasHit[], queryName: string): string | null {
-  if (hits.length === 0) return null;
-  const queryKey = primaryModelKey(queryName);
-  const compatible = hits.filter(
-    (hit) => aliasesCompatible(queryName, hit.fullName) || aliasesCompatible(queryName, hit.modelName),
-  );
-  if (compatible.length === 0) return null;
-  const ranked = [...compatible].sort(
-    (a, b) => rankHit(b, queryName, queryKey) - rankHit(a, queryName, queryKey),
-  );
-  return ranked[0]?.partId ?? null;
-}
+import { pickBestPartId, type AliasHit } from "@/lib/ingest/part-match-rank";
 
 export async function findPartIdByAliases(
   partName: string,
@@ -61,7 +31,7 @@ export async function findPartIdByAliases(
     take: 50,
   });
 
-  const fromAlias = pickBest(
+  const fromAlias = pickBestPartId(
     aliasRows.map((row) => ({
       partId: row.partId,
       alias: row.alias,
@@ -90,19 +60,14 @@ export async function findPartIdByAliases(
     take: 80,
   });
 
-  const compatible = parts.filter(
-    (part) => aliasesCompatible(partName, part.fullName) || aliasesCompatible(partName, part.modelName),
-  );
-  if (compatible.length === 0) return null;
-  return pickBest(
-    compatible.map((part) => ({
-      partId: part.id,
-      alias: primaryModelKey(part.fullName) ?? part.modelName,
-      fullName: part.fullName,
-      modelName: part.modelName,
-    })),
-    partName,
-  );
+  const hits: AliasHit[] = parts.map((part) => ({
+    partId: part.id,
+    alias: primaryModelKey(part.fullName) ?? part.modelName,
+    fullName: part.fullName,
+    modelName: part.modelName,
+  }));
+
+  return pickBestPartId(hits, partName);
 }
 
 export async function persistGeneratedAliases(partId: string, partName: string): Promise<void> {

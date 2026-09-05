@@ -3,20 +3,30 @@
  *
  * 표기가 달라도("RTX 4060 Ti" / "4060ti" / "4060 Ti" / "지포스 4060ti") 같은 부품으로
  * 매칭되게, 각 부품에 가능한 정규화 표기를 별칭으로 붙여둔다.
- * 핵심 식별자 = 모델번호+접미사(4060ti, 13600k, 5600x). 브랜드·접두어·띄어쓰기는 노이즈.
+ * 핵심 식별자 = 모델번호+접미사(4060ti, 13600k, 5600x). 브랜드·접두어·용량·띄어쓰기는 노이즈.
  *
- * 주의: 4060 과 4060 Ti 는 접미사 join 덕분에 "4060" / "4060ti" 로 분리돼 충돌하지 않는다.
+ * 주의: 4060 과 4060 Ti 는 접미사 join 덤분에 "4060" / "4060ti" 로 분리돼 충돌하지 않는다.
  */
-export function generateAliases(name: string): string[] {
-  const lower = name
+const MODEL_SUFFIX = "ti|super|xtx|xt|x3d|ks|kf|k|f|x|s";
+
+function normalizeInput(name: string): string {
+  return name
     .toLowerCase()
     .replace(/슈퍼/g, "super")
-    .replace(/티아이/g, "ti");
+    .replace(/티아이/g, "ti")
+    .replace(/\b\d+\s*(gb|tb|g)\b/g, " ")
+    .replace(/\b(i[3579]|아이[3579]|core)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function generateAliases(name: string): string[] {
+  const lower = normalizeInput(name);
   const norm = (s: string) => s.replace(/[^a-z0-9]/g, "");
   const out = new Set<string>();
   out.add(norm(lower));
 
-  let core = lower.replace(/\s+(ti|super|xt|xtx)\b/g, "$1");
+  let core = lower.replace(new RegExp(`\\s+(${MODEL_SUFFIX})\\b`, "g"), "$1");
   core = core
     .replace(/nvidia|geforce|지포스|radeon|라데온|intel|인텔|삼성|samsung/g, "")
     .replace(/\s+/g, " ")
@@ -42,9 +52,11 @@ export function generateAliases(name: string): string[] {
   return [...out].filter((a) => a.length >= 3);
 }
 
+const MODEL_KEY_RE = new RegExp(`^\\d{3,5}(?:${MODEL_SUFFIX})?$`);
+
 export function primaryModelKey(name: string): string | null {
   const aliases = generateAliases(name);
-  const modelTokens = aliases.filter((alias) => /^\d{3,5}[a-z0-9]*$/.test(alias));
+  const modelTokens = aliases.filter((alias) => MODEL_KEY_RE.test(alias));
   if (modelTokens.length > 0) {
     return [...modelTokens].sort((a, b) => b.length - a.length || a.localeCompare(b))[0];
   }
@@ -61,7 +73,7 @@ export function digitCore(nameOrKey: string): string | null {
 export function aliasesCompatible(queryName: string, candidateName: string): boolean {
   const queryKey = primaryModelKey(queryName);
   const candidateKey = primaryModelKey(candidateName);
-  if (queryKey && candidateKey && /^\d{3,5}[a-z0-9]*$/.test(queryKey) && /^\d{3,5}[a-z0-9]*$/.test(candidateKey)) {
+  if (queryKey && candidateKey && MODEL_KEY_RE.test(queryKey) && MODEL_KEY_RE.test(candidateKey)) {
     return queryKey === candidateKey;
   }
   const queryAliases = new Set(generateAliases(queryName));

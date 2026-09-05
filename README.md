@@ -50,6 +50,19 @@ ADMIN_API_TOKEN="long-random-server-only-token"
 
 `POST /api/market/import`는 크롤링 + Claude + DB 저장이라 관리자 인증이 필요합니다.
 
+## 테스트
+
+```bash
+npm test
+```
+
+단위 테스트는 DB/Claude 없이 돌아갑니다. 핵심 회귀:
+
+- `4060` vs `4060 Ti` 모델키 분리 (`8GB` 용량 표기 포함)
+- ingest 저장 문킱 (`used-listing-guard`)
+
+CI: `.github/workflows/test.yml` (`push`/`pull_request` 시 `npm test`)
+
 ## 주요 스크립트
 
 - `npm run prisma:validate`
