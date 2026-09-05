@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 
+import { generateAliases } from "@/lib/ingest/part-alias";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q")?.trim().toLowerCase() ?? "";
+    const q = searchParams.get("q")?.trim() ?? "";
     const limit = Math.min(Number(searchParams.get("limit") ?? 20), 100);
+    const keys = q ? generateAliases(q) : [];
 
     const aliases = await prisma.partAlias.findMany({
       where: {
-        alias: q ? { contains: q } : undefined,
+        alias: q ? { in: keys } : undefined,
         part: {
           isActive: true,
         },
