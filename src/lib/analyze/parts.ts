@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { findPartIdByAliases, persistGeneratedAliases } from "@/lib/ingest/part-match";
 import { aliasesCompatible } from "@/lib/ingest/part-alias";
-import { pickBestRamPartId, ramPartKey as ramSpecKey } from "@/lib/ingest/ram-match";
+import { pickBestRamPartId, ramPartKey } from "@/lib/ingest/ram-match";
 import { isValidNewPrice } from "@/lib/engine/pricing";
 
 import { callClaude } from "./claude";
@@ -14,14 +14,8 @@ import {
   categoryKeyword,
   extractBrandName,
   isSanePriceForCategory,
-  minNewPriceByCategory,
 } from "./helpers";
-import {
-  applyReferenceNewPrice,
-  getNewPrice,
-  resolveApproximatePrice,
-  resolveUsedPriceFromDb,
-} from "./prices";
+import { resolveNewProductPriceFromDb, resolveUsedPriceFromDb } from "./prices";
 
 export const SYSTEM_PART_CATEGORIES = ["MOTHERBOARD", "PSU", "CASE"] as const;
 
@@ -357,12 +351,7 @@ export function normalizeExtractedParts(parts: any[]): any[] {
     .filter((part) => part.partName.length > 0 && VALID_PART_CATEGORIES.has(part.category));
 }
 
-export function ramPartKey(partName: string): string {
-  const lower = partName.toLowerCase();
-  const gen = /\bddr5\b/.test(lower) ? "ddr5" : "ddr4";
-  const cap = lower.match(/(\d+)\s*(?:gb|g)\b/)?.[1] ?? lower.match(/\b(\d{1,3})\b/)?.[1] ?? "";
-  return `${gen}:${cap}`;
-}
+export { ramPartKey };
 
 /** SSD/NVMe 문맥의 용량만 제외. DDR4 16GB 옆에 SSD가 있어도 RAM으로 인식 */
 export function shouldSkipRamMatch(matchText: string, text: string, index: number, matchLength: number): boolean {
@@ -458,40 +447,11 @@ export function supplementRamPartsFromText(text: string, parts: any[]): any[] {
 
 
 export async function findRamPartId(partName: string): Promise<string | null> {
-  const lower = partName.toLowerCase();
-  const ddr = /\bddr5\b/.test(lower) ? "DDR5" : /\bddr4\b/.test(lower) ? "DDR4" : null;
-  const capMatch = lower.match(/\b(\d+)\s*(?:gb|g)\b/) ?? lower.match(/\b(\d+)\b/);
-  const capacity = capMatch ? Number(capMatch[1]) : null;
-  if (!capacity || capacity < 4 || capacity > 256) return null;
-
-  const gen = ddr ?? "DDR4";
   const candidates = await prisma.part.findMany({
-    where: {
-      category: "RAM",
-      isActive: true,
-      fullName: { contains: gen, mode: "insensitive" },
-    },
-    select: { id: true, fullName: true },
+    where: { category: "RAM", isActive: true },
+    select: { id: true, fullName: true, modelName: true },
   });
-
-  const matched = candidates.filter((part) => {
-    const fn = part.fullName.toLowerCase();
-    if (!fn.includes(String(capacity))) return false;
-    if (ddr && !fn.includes(ddr.toLowerCase())) return false;
-    return true;
-  });
-
-  if (matched.length === 0) return null;
-
-  const wantsKit = /kit|2x|x2|키트/i.test(partName);
-  if (!wantsKit) {
-    const single = matched.find(
-      (part) => /단일|single/i.test(part.fullName) || !/키트|kit|2x/i.test(part.fullName),
-    );
-    if (single) return single.id;
-  }
-
-  return matched[0].id;
+  return pickBestRamPartId(partName, candidates);
 }
 
 export async function resolvePartId(partName: string, category: string): Promise<string | null> {

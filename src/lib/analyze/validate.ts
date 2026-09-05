@@ -1,16 +1,26 @@
 // 시세 검증·이상치 보정.
 
 import { validateAndCleanPrices } from "@/lib/engine/price-validator";
+import { shouldPersistUsedPrice } from "@/lib/engine/pricing";
+import {
+  findCpuReferenceNewPrice,
+  findGpuReferenceNewPrice,
+  getCpuReferencePrice,
+  getGpuReferencePrice,
+} from "@/lib/engine/gpu-reference-prices";
+import { ramPartKey } from "@/lib/ingest/ram-match";
 
 import { callClaude } from "./claude";
 import type { AnalyzedPart } from "./types";
 import { attachPriceSource, isSanePriceForCategory } from "./helpers";
+import { partNamesMatch } from "./parts";
 import {
   getBuyoutPrice,
+  RAM_STATIC_MID_KRW,
   resolveCpuReferenceFormulaPrice,
   resolveFormulaPriceFromNewProduct,
   resolveGpuReferenceFormulaPrice,
-  resolveNewProductPriceFromDb,
+  resolveUsedPriceFromDb,
 } from "./prices";
 
 export async function crossValidatePartPrice(

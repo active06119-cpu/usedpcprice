@@ -24,10 +24,8 @@ import {
   extractListingFromText,
   findRamPartId,
   missingSystemPartCategories,
-  normalizeExtractedParts,
   resolveOneExtractedPart,
   resolvePartsForNewMode,
-  supplementRamPartsFromText,
 } from "./parts";
 import { crossValidateParts, validatePartPricesWithCode, validateRarePartsWithClaude } from "./validate";
 

@@ -18,10 +18,12 @@ import {
   getCpuReferencePrice,
 } from "@/lib/engine/gpu-reference-prices";
 import { aliasesCompatible } from "@/lib/ingest/part-alias";
+import { ramPartKey } from "@/lib/ingest/ram-match";
 
 import type { AnalyzedPart } from "./types";
 import {
   attachPriceSource,
+  categoryKeyword,
   isSanePriceForCategory,
   usedPriceMultiplierByCondition,
 } from "./helpers";
@@ -550,7 +552,8 @@ export const RAM_STATIC_MID_KRW: Record<string, number> = {
 export async function resolveRamPriceFallback(part: AnalyzedPart): Promise<AnalyzedPart> {
   if (part.category !== "RAM" || part.usedMid !== null) return part;
 
-  const ramPartId = part.partId ?? (await findRamPartId(part.partName));
+  const ramPartId =
+    part.partId ?? (await (await import("./parts")).findRamPartId(part.partName));
   if (ramPartId) {
     const dbPrice = await resolveUsedPriceFromDb(ramPartId, part.partName, "RAM", 3);
     if (dbPrice) {
