@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { partitionPersistable } from "@/lib/ingest/used-listing-guard";
+import { guardAdminRequest } from "@/lib/admin-guard";
+import { checkRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 
 type ParsedPart = {
   category: "CPU" | "GPU" | "RAM" | "SSD" | "HDD" | "MAINBOARD" | "PSU" | "CASE" | "ETC";
@@ -133,10 +135,30 @@ async function crawlListing(url: string): Promise<{ title: string; description: 
 
 export async function POST(req: NextRequest) {
   try {
+    const guard = guardAdminRequest(req);
+    if (guard) return guard;
+
+    const ip = getClientIp(req);
+    const rate = checkRateLimit(`admin:market-import:${ip}`, 10, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { ok: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+        { status: 429, headers: rateLimitHeaders(rate.retryAfterMs) },
+      );
+    }
+
     const body = (await req.json()) as { url?: string };
     const sourceUrl = body.url?.trim();
     if (!sourceUrl) {
       return NextResponse.json({ ok: false, message: "URL을 입력해주세요." }, { status: 400 });
+    }
+    try {
+      const parsed = new URL(sourceUrl);
+      if (!/^https?:$/i.test(parsed.protocol)) {
+        return NextResponse.json({ ok: false, message: "http/https URL만 허용됩니다." }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ ok: false, message: "URL 형식이 올바르지 않습니다." }, { status: 400 });
     }
 
     const duplicateCount = await prisma.partsPrice.count({
@@ -175,7 +197,6 @@ export async function POST(req: NextRequest) {
     const listedAt = parseListedAt(crawled.rawText);
     const saleStatus = parseSaleStatus(crawled.rawText);
 
-    // 저장 문턱: 가격 null·시세 범위 밖·엉터리 이름은 DB에 넣지 않는다.
     const normalized = parts.map((part) => ({
       part,
       category: toPartCategory(part.category),
