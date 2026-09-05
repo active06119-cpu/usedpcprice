@@ -37,7 +37,27 @@ describe("inspectPostgresUrl", () => {
   });
 
   it("marks malformed urls invalid instead of throwing", () => {
-    expect(inspectPostgresUrl("not-a-url")).toEqual({ present: true, hostKind: "invalid" });
+    expect(inspectPostgresUrl("not-a-url")).toEqual({
+      present: true,
+      hostKind: "invalid",
+      pasteHints: ["missing_protocol"],
+    });
+  });
+
+  it("flags quoted .env paste while still reading host kind", () => {
+    const info = inspectPostgresUrl(
+      'DATABASE_URL="postgresql://postgres.abc:pass@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true"',
+    );
+    expect(info.hostKind).toBe("supabase_pooler");
+    expect(info.port).toBe("6543");
+    expect(info.pasteHints).toEqual(expect.arrayContaining(["wrapping_quotes", "env_key_prefix"]));
+  });
+
+  it("flags unencoded question mark in the password", () => {
+    const info = inspectPostgresUrl(
+      "postgresql://postgres.abc:ab??cd@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true",
+    );
+    expect(info.pasteHints).toEqual(expect.arrayContaining(["question_mark_before_host"]));
   });
 });
 
@@ -47,7 +67,7 @@ describe("classifyDbError", () => {
   });
 
   it("maps prisma codes", () => {
-    const env = { DATABASE_URL: "postgres://x" };
+    const env = { DATABASE_URL: "postgres://user:pass@localhost:5432/postgres" };
     expect(classifyDbError({ code: "P1001", message: "Can't reach database server" }, env).reason).toBe(
       "unreachable_host",
     );
@@ -55,6 +75,12 @@ describe("classifyDbError", () => {
       "auth_failed",
     );
     expect(classifyDbError({ code: "P1013", name: "Error", message: "invalid" }, env).reason).toBe(
+      "invalid_connection_string",
+    );
+  });
+
+  it("classifies unparseable DATABASE_URL as invalid_connection_string", () => {
+    expect(classifyDbError(new Error("init"), { DATABASE_URL: "not-a-url" }).reason).toBe(
       "invalid_connection_string",
     );
   });
