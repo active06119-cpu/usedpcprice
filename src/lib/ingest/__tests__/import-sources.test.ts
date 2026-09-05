@@ -1,9 +1,8 @@
-import { resolveImportSources } from "../../../scripts/batch-runner";
+import { resolveImportSources } from "@/lib/ingest/import-sources";
 
 describe("resolveImportSources", () => {
-  it("defaults to NAVER_SHOPPING", () => {
-    expect(resolveImportSources("", false)).toEqual([]);
-    expect(resolveImportSources("NAVER_SHOPPING", false)).toEqual(["NAVER_SHOPPING"]);
+  it("keeps official NAVER_SHOPPING and ignores unknown values", () => {
+    expect(resolveImportSources("NAVER_SHOPPING,FOO", false)).toEqual(["NAVER_SHOPPING"]);
   });
 
   it("drops DAANGN unless explicitly enabled", () => {
