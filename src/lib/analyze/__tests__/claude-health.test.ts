@@ -1,6 +1,5 @@
-import { classifyAnthropicStatus, keyPrefixProbe } from "@/lib/analyze/claude";
+import { classifyAnthropicStatus } from "@/lib/analyze/claude";
 
-// keyPrefixOf is not exported; classify is enough for unit coverage.
 describe("classifyAnthropicStatus", () => {
   it("maps auth and billing failures", () => {
     expect(classifyAnthropicStatus(401, "authentication_error")).toBe("invalid_api_key");
