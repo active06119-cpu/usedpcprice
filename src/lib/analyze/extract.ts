@@ -1,3 +1,5 @@
+import { callClaude } from "./claude";
+
 export type ExtractedPart = {
   partName: string;
   category: string;
@@ -58,36 +60,6 @@ GPU(그래픽카드), CPU(프로세서), RAM(메모리), SSD, HDD, MOTHERBOARD(�
   ]
 }
 `;
-
-async function callClaude(system: string, user: string): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is not configured.");
-  }
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-5",
-      max_tokens: 2000,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Claude API ${res.status}: ${body.slice(0, 300)}`);
-  }
-
-  const data = await res.json();
-  return data.content?.[0]?.text ?? "";
-}
 
 export async function extractListingFromText(text: string): Promise<ExtractedListing> {
   const raw = await callClaude(EXTRACT_SYSTEM, text);
