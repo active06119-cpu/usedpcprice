@@ -1,0 +1,34 @@
+name: split-pipeline-modules
+
+on:
+  push:
+    paths:
+      - scripts/split-pipeline-modules.py
+      - .github/workflows/split-pipeline-modules.yml
+  workflow_dispatch:
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Split pipeline modules
+        run: python3 scripts/split-pipeline-modules.py
+      - name: Commit result and remove workflow
+        run: |
+          rm -f .github/workflows/split-pipeline-modules.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/analyze scripts/split-pipeline-modules.py
+          git add -u .github/workflows/split-pipeline-modules.yml
+          if git diff --cached --quiet; then
+            echo No changes
+            exit 0
+          fi
+          git commit -m "refactor: split analyze pipeline into helpers/prices/parts/validate"
+          git push
