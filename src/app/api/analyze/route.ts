@@ -1,8 +1,9 @@
 // src/app/api/analyze/route.ts
 // 핵심 API — 매물 본문 붙여넣기 → 부품 추출 → 시세 조회 → 적정가 산출
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import {
   filterUsedPrices,
   isMidInValidRange,
@@ -2335,8 +2336,40 @@ async function persistAnalysisResult(result: AnalyzeResult): Promise<void> {
     });
 }
 
+const ANALYZE_LIMIT = 8;
+const ANALYZE_WINDOW_MS = 60_000;
+const MAX_ANALYZE_TEXT_CHARS = 8_000;
+
 export async function POST(req: NextRequest) {
-  const { text, mode: rawMode } = await req.json();
+  const ip = getClientIp(req);
+  const rate = checkRateLimit(`analyze:${ip}`, ANALYZE_LIMIT, ANALYZE_WINDOW_MS);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+      { status: 429, headers: rateLimitHeaders(rate.retryAfterMs) },
+    );
+  }
+
+  let rawMode: unknown;
+  let text: unknown;
+  try {
+    const body = await req.json();
+    rawMode = body?.mode;
+    text = body?.text;
+  } catch {
+    return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
+  }
+
+  if (typeof text !== "string" || !text.trim()) {
+    return NextResponse.json({ error: "텍스트를 입력해주세요." }, { status: 400 });
+  }
+  if (text.length > MAX_ANALYZE_TEXT_CHARS) {
+    return NextResponse.json(
+      { error: `본문은 ${MAX_ANALYZE_TEXT_CHARS.toLocaleString("ko-KR")}자 이내로 입력해주세요.` },
+      { status: 400 },
+    );
+  }
+
   const analysisMode: AnalyzeResult["analysisMode"] = rawMode === "new" ? "new" : "used";
   const encoder = new TextEncoder();
 

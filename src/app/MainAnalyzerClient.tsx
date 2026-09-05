@@ -77,6 +77,17 @@ async function readAnalyzeStream(
     body: JSON.stringify({ text, mode }),
   });
 
+  if (res.status === 429) {
+    throw new Error("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+  }
+  if (res.status === 400) {
+    const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? "요청을 처리할 수 없습니다.");
+  }
+  if (!res.ok) {
+    throw new Error("분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요.");
+  }
+
   if (!res.body) {
     throw new Error("스트리밍 응답을 받지 못했습니다.");
   }
