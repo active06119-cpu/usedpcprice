@@ -1,0 +1,41 @@
+name: purge-debug-output-history
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install git-filter-repo
+        run: pip install git-filter-repo
+
+      - name: Drop debug-output from entire git history
+        run: git filter-repo --force --invert-paths --path debug-output/
+
+      - name: Remove this workflow and force-push main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if [ -f .github/workflows/purge-debug-output-history.yml ]; then
+            git rm -f .github/workflows/purge-debug-output-history.yml
+            if [ -d .github/workflows ] && [ -z "$(ls -A .github/workflows)" ]; then
+              git rm -rf .github/workflows || true
+            fi
+            if [ -d .github ] && [ -z "$(ls -A .github)" ]; then
+              git rm -rf .github || true
+            fi
+            git commit -m "chore: remove one-shot history purge workflow" || true
+          fi
+          git push --force origin HEAD:refs/heads/main
