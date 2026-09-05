@@ -1,4 +1,11 @@
-import { isValidPartName, partitionPersistable } from "@/lib/ingest/used-listing-guard";
+import {
+  isValidListingAskingPrice,
+  isValidListingText,
+  isValidPartName,
+  partitionPersistable,
+  partitionPersistableListings,
+} from "@/lib/ingest/used-listing-guard";
+import { parseManualPriceText } from "@/lib/ingest/manual-price-parser";
 
 describe("isValidPartName", () => {
   it("accepts real part names", () => {
@@ -41,5 +48,39 @@ describe("partitionPersistable", () => {
     expect(kept).toHaveLength(1);
     expect(rejected).toHaveLength(1);
     expect(rejected[0].reason).toBe("price_out_of_range");
+  });
+});
+
+describe("partitionPersistableListings", () => {
+  it("keeps a normal listing and drops junk / bad url / insane price", () => {
+    const { kept, rejected } = partitionPersistableListings([
+      { rawText: "RTX 4060 35만원", askingPriceKrw: 350_000 },
+      { rawText: "없음" },
+      { rawText: "RTX 4070", sourceUrl: "ftp://example.com" },
+      { rawText: "전체 PC", askingPriceKrw: 99 },
+    ]);
+
+    expect(kept.map((row) => row.rawText)).toEqual(["RTX 4060 35만원"]);
+    expect(rejected.map((row) => row.reason).sort()).toEqual([
+      "invalid_text",
+      "invalid_url",
+      "price_out_of_range",
+    ]);
+  });
+
+  it("allows missing asking price", () => {
+    expect(isValidListingAskingPrice(undefined)).toBe(true);
+    expect(isValidListingText("i5-13600K + 4060 Ti")).toBe(true);
+  });
+});
+
+describe("parseManualPriceText", () => {
+  it("rejects RAM prices outside used bands before save", () => {
+    const { rows, bad } = parseManualPriceText(
+      ["DDR5 32GB\tRAM\t90000", "DDR5 32GB\tRAM\t10000", "없음\tGPU\t300000"].join("\n"),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].price).toBe(90_000);
+    expect(bad).toHaveLength(2);
   });
 });

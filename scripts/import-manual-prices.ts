@@ -1,7 +1,7 @@
 /**
  * 손수 정리한 부품 중고가(엑셀/CSV) → DB (서랍 1: 부품 가격표).
  *
- * 관리자 페이지(/admin/manual-prices)에서 붙여넣기로 해도 되고, 파일로 대량 넣을 땐 이 스크립트.
+ * 관리자 페이지(/admin/manual-prices)에서 붙여넣기로 해도 되고, 파일로 대량 넣을 때 이 스크립트.
  * 엑셀에서 data/manual-prices.csv 를 "CSV UTF-8"로 저장한 뒤 실행:
  *   npx tsx scripts/import-manual-prices.ts            # 미리보기 (검증만, DB 안 건드림)
  *   npx tsx scripts/import-manual-prices.ts --apply    # 실제 저장
@@ -48,8 +48,11 @@ async function main() {
     return;
   }
 
-  const saved = await saveManualRows(prisma, rows);
+  const { saved, rejected } = await saveManualRows(prisma, rows);
   console.log(`✅ 저장 완료: ${saved}건 (MANUAL 소스로 반영됨)`);
+  if (rejected.length > 0) {
+    console.log(`⚠️ 저장 직전 추가 제거: ${rejected.length}건`);
+  }
   await prisma.$disconnect();
 }
 

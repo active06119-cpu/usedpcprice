@@ -28,7 +28,6 @@ export async function POST(req: Request) {
 
     const { rows, bad } = parseManualPriceText(text);
 
-    // 미리보기: 저장하지 않고 결과만
     if (!body.apply) {
       return NextResponse.json({
         ok: true,
@@ -47,14 +46,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const saved = await saveManualRows(prisma, rows);
+    const { saved, rejected } = await saveManualRows(prisma, rows);
+    const extraFiltered = rejected.map((row) => ({
+      line: 0,
+      raw: row.name,
+      reason: row.reason,
+    }));
 
     return NextResponse.json({
       ok: true,
       applied: true,
       saved,
-      filteredCount: bad.length,
-      filtered: bad.slice(0, 100),
+      filteredCount: bad.length + rejected.length,
+      filtered: [...bad, ...extraFiltered].slice(0, 100),
     });
   } catch (error) {
     console.error("[manual-prices]", error);

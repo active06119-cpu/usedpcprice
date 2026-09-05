@@ -10,7 +10,6 @@ type ParsedRow = {
 };
 
 export default function BulkImportPage() {
-  const adminToken = process.env.NEXT_PUBLIC_ADMIN_API_TOKEN ?? "";
   const [input, setInput] = useState("");
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,7 +21,8 @@ export default function BulkImportPage() {
       setMessage(null);
       const res = await fetch("/api/admin/parse-listings", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ rawText: input }),
       });
       const data = (await res.json()) as { ok: boolean; items?: ParsedRow[]; message?: string };
@@ -45,15 +45,21 @@ export default function BulkImportPage() {
       setMessage(null);
       const res = await fetch("/api/admin/save-listings", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ items: parsed }),
       });
-      const data = (await res.json()) as { ok: boolean; inserted?: number; message?: string };
+      const data = (await res.json()) as {
+        ok: boolean;
+        inserted?: number;
+        rejected?: number;
+        message?: string;
+      };
       if (!res.ok || !data.ok) {
         setMessage(data.message ?? "저장에 실패했습니다.");
         return;
       }
-      setMessage(`저장 완료: ${data.inserted ?? 0}건`);
+      setMessage(`저장 완료: ${data.inserted ?? 0}건 (걸러짐 ${data.rejected ?? 0}건)`);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "저장 중 오류가 발생했습니다.");
     } finally {
@@ -65,7 +71,7 @@ export default function BulkImportPage() {
     <main className="mx-auto max-w-5xl p-6">
       <h1 className="text-2xl font-semibold">관리자 대량 등록</h1>
       <p className="mt-2 text-sm text-zinc-600">
-        줄바꿈 기준으로 텍스트를 붙여넣고 파싱한 뒤 저장합니다.
+        줄바꿈 기준으로 텍스트를 붙여넣고 파싱한 뒤 저장합니다. 가격·URL·본문 이상치는 저장하지 않습니다.
       </p>
 
       <textarea
