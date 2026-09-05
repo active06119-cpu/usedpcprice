@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { LogoutButton } from "@/components/admin/LogoutButton";
+
 const NAV = [
   { href: "/admin", label: "시세 관리" },
   { href: "/admin/bulk-import", label: "대량 등록" },
@@ -32,6 +34,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             >
               공개 마켓 →
             </Link>
+            <LogoutButton />
           </nav>
         </div>
       </header>
