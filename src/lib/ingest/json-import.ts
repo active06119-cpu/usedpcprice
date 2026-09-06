@@ -7,8 +7,12 @@ import {
   isValidPartName,
   type ListingPersistCandidate,
 } from "@/lib/ingest/used-listing-guard";
+import { resolveUsedSource, type UsedImportSource } from "@/lib/ingest/used-source";
 
-export type JsonImportPart = ManualRow & { url?: string | null };
+export type JsonImportPart = ManualRow & {
+  url?: string | null;
+  sourceType: UsedImportSource;
+};
 export type JsonImportListing = ListingPersistCandidate & {
   title?: string;
 };
@@ -100,10 +104,11 @@ export function parseImportJson(input: unknown): JsonImportResult {
 
   for (const item of unwrapRows(input)) {
     if (!item || typeof item !== "object") {
-      rejected.push({ raw: preview(item), reason: "object가 아닔" });
+      rejected.push({ raw: preview(item), reason: "object가 아님" });
       continue;
     }
     const row = item as Record<string, unknown>;
+    const url = asText(row.url) || asText(row.sourceUrl) || null;
 
     if (isPartRow(row)) {
       const name = asText(row.name) || asText(row.partName);
@@ -122,20 +127,25 @@ export function parseImportJson(input: unknown): JsonImportResult {
         category,
         price,
         line: parts.length + 1,
-        url: asText(row.url) || null,
+        url,
+        sourceType: resolveUsedSource({
+          source: row.source,
+          sourceType: row.sourceType,
+          url,
+          defaultSource: "DAANGN",
+        }),
       });
       continue;
     }
 
     const title = asText(row.title);
     const rawText = asText(row.rawText) || title;
-    const sourceUrl = asText(row.url) || asText(row.sourceUrl) || null;
     const askingPriceKrw = asNumber(row.priceKrw ?? row.askingPriceKrw ?? row.price);
     if (!isValidListingText(rawText)) {
       rejected.push({ raw: preview(row), reason: "매물 본문 없음" });
       continue;
     }
-    if (!isValidHttpUrl(sourceUrl)) {
+    if (!isValidHttpUrl(url)) {
       rejected.push({ raw: preview(row), reason: "URL 이상" });
       continue;
     }
@@ -146,7 +156,7 @@ export function parseImportJson(input: unknown): JsonImportResult {
     listings.push({
       title: title || undefined,
       rawText,
-      sourceUrl,
+      sourceUrl: url,
       askingPriceKrw,
     });
   }
