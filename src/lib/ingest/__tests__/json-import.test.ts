@@ -17,7 +17,7 @@ describe("parseImportJson", () => {
     expect(parsed.parts).toHaveLength(1);
     expect(parsed.listings).toHaveLength(1);
     expect(parsed.rejected).toHaveLength(0);
-    expect(parsed.parts[0]?.name).toBe("RTX 4060");
+    expect(parsed.parts[0]?.sourceType).toBe("DAANGN");
   });
 
   it("keeps 4060 Ti as its own part and drops junk prices", () => {
