@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type PreviewPart = { name: string; category: string; price: number };
+type PreviewPart = { name: string; category: string; price: number; sourceType?: string };
 type PreviewListing = { rawText: string; sourceUrl?: string | null; askingPriceKrw?: number | null };
 type Rejected = { raw: string; reason: string };
 
@@ -69,8 +69,8 @@ export default function ImportJsonPage() {
     <main className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-xl font-semibold text-zinc-900">JSON 가져오기</h1>
       <p className="mt-1 text-sm text-zinc-600">
-        그롭 봇이 내준 <code>parts.json</code> / <code>listings.json</code> 을 올립니다.
-        단품은 시세, 완본체는 매물 원문으로 분리 저장됩니다.
+        단품은 <code>DAANGN</code> 시세로, 완본체는 매물 원문으로 분리 저장됩니다.
+        봇은 파일 대신 <code>POST /api/admin/import-json</code> 에 <code>x-admin-token</code>으로 바로 넣을 수 있습니다.
       </p>
 
       <label className="mt-4 flex cursor-pointer flex-col items-center rounded-lg border border-dashed border-zinc-300 bg-white px-4 py-10 text-sm text-zinc-600 hover:border-zinc-400">
@@ -129,7 +129,7 @@ export default function ImportJsonPage() {
           <ul className="mt-2 space-y-1 text-sm text-zinc-700">
             {result.parts.map((row) => (
               <li key={`${row.name}-${row.price}`}>
-                {row.name} / {row.category} / ₩{row.price.toLocaleString("ko-KR")}
+                {row.name} / {row.category} / {row.sourceType ?? "DAANGN"} / ₩{row.price.toLocaleString("ko-KR")}
               </li>
             ))}
           </ul>
