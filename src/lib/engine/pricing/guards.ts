@@ -6,27 +6,30 @@ export function getUsedPriceRange(
 
   if (category === "RAM") {
     const isKit = /kit|2x|x2|듀얼|키트/.test(name);
-    if (/ddr5/.test(name) && /32/.test(name)) return { min: 70_000, max: 160_000 };
-    if (/ddr5/.test(name) && /16/.test(name)) return { min: 45_000, max: 100_000 };
-    if (/ddr4/.test(name) && /32/.test(name) && isKit) return { min: 70_000, max: 150_000 };
-    if (/ddr4/.test(name) && /32/.test(name)) return { min: 85_000, max: 170_000 };
-    if (/ddr4/.test(name) && /16/.test(name) && isKit) return { min: 35_000, max: 85_000 };
-    if (/ddr4/.test(name) && /16/.test(name)) return { min: 50_000, max: 110_000 };
-    if (/ddr4/.test(name) && /8/.test(name)) return { min: 12_000, max: 45_000 };
-    if (/64/.test(name)) return { min: 150_000, max: 350_000 };
-    if (/32/.test(name)) return { min: 70_000, max: 180_000 };
-    if (/16/.test(name)) return { min: 35_000, max: 120_000 };
-    if (/8/.test(name)) return { min: 10_000, max: 60_000 };
-    return { min: 10_000, max: 250_000 };
+    if (/ddr5/.test(name) && /64/.test(name)) return { min: 180_000, max: 900_000 };
+    if (/ddr5/.test(name) && /32/.test(name)) return { min: 80_000, max: 650_000 };
+    if (/ddr5/.test(name) && /16/.test(name)) return { min: 50_000, max: 500_000 };
+    if (/ddr5/.test(name) && /8/.test(name)) return { min: 30_000, max: 180_000 };
+    if (/ddr4/.test(name) && /32/.test(name) && isKit) return { min: 70_000, max: 380_000 };
+    if (/ddr4/.test(name) && /32/.test(name)) return { min: 70_000, max: 380_000 };
+    if (/ddr4/.test(name) && /16/.test(name) && isKit) return { min: 35_000, max: 200_000 };
+    if (/ddr4/.test(name) && /16/.test(name)) return { min: 35_000, max: 200_000 };
+    if (/ddr4/.test(name) && /8/.test(name)) return { min: 12_000, max: 80_000 };
+    if (/ddr4/.test(name) && /4/.test(name)) return { min: 8_000, max: 50_000 };
+    if (/64/.test(name)) return { min: 150_000, max: 900_000 };
+    if (/32/.test(name)) return { min: 70_000, max: 400_000 };
+    if (/16/.test(name)) return { min: 35_000, max: 220_000 };
+    if (/8/.test(name)) return { min: 10_000, max: 80_000 };
+    return { min: 8_000, max: 400_000 };
   }
 
   if (category === "SSD") {
-    if (/\b4\s*tb\b/.test(name) || /\b4096\s*g/.test(name)) return { min: 450_000, max: 1_000_000 };
-    if (/\b2\s*tb\b/.test(name) || /\b2048\s*g/.test(name)) return { min: 200_000, max: 450_000 };
-    if (/\b1\s*tb\b/.test(name) || /\b1024\s*g/.test(name)) return { min: 130_000, max: 300_000 };
-    if (/\b512\s*g/.test(name)) return { min: 60_000, max: 150_000 };
-    if (/\b256\s*g/.test(name)) return { min: 30_000, max: 80_000 };
-    if (/\b128\s*g/.test(name)) return { min: 20_000, max: 55_000 };
+    if (/\b4\s*tb\b/.test(name) || /\b4096\s*g/.test(name)) return { min: 250_000, max: 1_200_000 };
+    if (/\b2\s*tb\b/.test(name) || /\b2048\s*g/.test(name)) return { min: 120_000, max: 850_000 };
+    if (/\b1\s*tb\b/.test(name) || /\b1024\s*g/.test(name)) return { min: 70_000, max: 450_000 };
+    if (/\b512\s*g/.test(name) || /\b500\s*g/.test(name)) return { min: 40_000, max: 280_000 };
+    if (/\b256\s*g/.test(name) || /\b250\s*g/.test(name)) return { min: 25_000, max: 200_000 };
+    if (/\b128\s*g/.test(name)) return { min: 15_000, max: 80_000 };
     return { min: 15_000, max: 1_000_000 };
   }
 
@@ -40,7 +43,7 @@ export function priceRangeByCategory(category: string): { min: number; max: numb
     case "CPU":
       return { min: 10_000, max: 2_500_000 };
     case "RAM":
-      return { min: 5_000, max: 800_000 };
+      return { min: 5_000, max: 900_000 };
     case "SSD":
       return { min: 5_000, max: 1_500_000 };
     case "HDD":
@@ -74,10 +77,10 @@ export function isValidNewPrice(priceKrw: number, partName: string, category: st
   const name = partName.toLowerCase();
 
   if (category === "RAM") {
-    if (name.includes("8gb") || name.includes("8g")) return priceKrw >= 20_000 && priceKrw <= 60_000;
-    if (name.includes("16gb") || name.includes("16g")) return priceKrw >= 40_000 && priceKrw <= 90_000;
-    if (name.includes("32gb") || name.includes("32g")) return priceKrw >= 80_000 && priceKrw <= 180_000;
-    return priceKrw >= 15_000 && priceKrw <= 200_000;
+    if (name.includes("8gb") || name.includes("8g")) return priceKrw >= 20_000 && priceKrw <= 80_000;
+    if (name.includes("16gb") || name.includes("16g")) return priceKrw >= 40_000 && priceKrw <= 200_000;
+    if (name.includes("32gb") || name.includes("32g")) return priceKrw >= 80_000 && priceKrw <= 400_000;
+    return priceKrw >= 15_000 && priceKrw <= 400_000;
   }
 
   if (category === "GPU") {
