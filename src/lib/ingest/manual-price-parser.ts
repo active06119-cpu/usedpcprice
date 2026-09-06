@@ -29,6 +29,9 @@ const CATEGORY_ALIASES: Record<string, string> = {
 export type ManualRow = { name: string; category: string; price: number; line: number };
 export type ManualBadRow = { line: number; raw: string; reason: string };
 
+const SSD_MODEL =
+  /\b(980|990|970|9100|870|860|850|830)\s*(pro|evo|plus)?\b|\b(sn\s*5\d{2}|sn\s*7\d{2}|sn\s*8\d{2}x?)\b|\b(p31|p41|p44|pm9a1|pm981|pm991|t500|t700|t705|t710|mx500|cras)\b/i;
+
 function normalizeCategory(raw: string): string | null {
   const up = raw.toUpperCase();
   if (CATEGORY_SET.has(up)) return up;
@@ -55,7 +58,7 @@ function inferCategory(title: string): string | null {
   const t = title.toLowerCase();
   if (/(rtx|gtx|\brx\s*\d|라데온|그래픽|지포스)/.test(t)) return "GPU";
   if (/(ddr[345]|램|메모리)/.test(t)) return "RAM";
-  if (/(ssd|nvme)/.test(t)) return "SSD";
+  if (/(ssd|nvme)/.test(t) || SSD_MODEL.test(t)) return "SSD";
   if (/(라이젠|ryzen|\bi[3579]\s*-?\d|\bcpu\b|씨피유)/.test(t)) return "CPU";
   if (/(hdd|하드)/.test(t)) return "HDD";
   return null;
@@ -132,22 +135,44 @@ function parseTabularLine(trimmed: string): { name: string; category: string; pr
   return { name, category, price };
 }
 
+function coalescePasteLines(lines: string[]): string[] {
+  const out: string[] = [];
+  let buf = "";
+  for (const raw of lines) {
+    const trimmed = raw.replace(/^[\-\*•]\s*/, "").trim();
+    if (!trimmed || trimmed === "---") continue;
+    if (/^https?:\/\//i.test(trimmed)) {
+      buf = buf ? `${buf} ${trimmed}` : trimmed;
+      out.push(buf);
+      buf = "";
+      continue;
+    }
+    if (extractPriceKrw(trimmed) && !inferCategory(trimmed) && buf) {
+      buf = `${buf} ${trimmed}`;
+      continue;
+    }
+    if (buf) out.push(buf);
+    buf = trimmed;
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
 export function parseManualPriceText(text: string): {
   rows: ManualRow[];
   bad: ManualBadRow[];
 } {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const rawLines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const lines = coalescePasteLines(rawLines);
   const rows: ManualRow[] = [];
   const bad: ManualBadRow[] = [];
 
-  lines.forEach((raw, idx) => {
+  lines.forEach((trimmed, idx) => {
     const line = idx + 1;
-    const trimmed = raw.trim();
-    if (!trimmed) return;
     if (/name/i.test(trimmed) && /price/i.test(trimmed)) return;
-    if (trimmed === "---") return;
 
-    const looksFreeform = !trimmed.includes("\t") && /(\d[\d,]*)\s*만\s*원|(\d{1,3}(?:,\d{3})+|\d{4,})\s*원/.test(trimmed);
+    const looksFreeform =
+      !trimmed.includes("\t") && /(\d[\d,]*)\s*만\s*원|(\d{1,3}(?:,\d{3})+|\d{4,})\s*원/.test(trimmed);
     const parsed = looksFreeform ? parseFreeformLine(trimmed) : parseTabularLine(trimmed);
     if ("reason" in parsed) {
       bad.push({ line, raw: trimmed, reason: parsed.reason });
