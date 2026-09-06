@@ -1,7 +1,6 @@
 /**
- * 파싱된 손수 입력 부품가를 DB에 저장 (서랍 1).
- * MANUAL 소스로 upsert. 같은 부품 재입력 시 기존 MANUAL 값 교체(중복 방지).
- * 스크립트·API 라우트가 공용으로 쓴다 (prisma 인스턴스를 인자로 받음).
+ * 파싱된 부품 중고가 DB 저장.
+ * MANUAL은 부품당 1개로 교체, DAANGN/BUNJANG은 URL이 같으면 업데이트.
  */
 import type { PrismaClient } from "@prisma/client";
 import { PartCategory, PartCondition, SnapshotSource } from "@prisma/client";
@@ -9,6 +8,7 @@ import { PartCategory, PartCondition, SnapshotSource } from "@prisma/client";
 import { generateAliases } from "./part-alias";
 import type { ManualRow } from "./manual-price-parser";
 import { partitionPersistable, type RejectedRow } from "./used-listing-guard";
+import type { UsedImportSource } from "./used-source";
 
 export function extractBrand(name: string): string {
   const n = name.toLowerCase();
@@ -59,14 +59,20 @@ export async function findOrCreatePart(
   return created.id;
 }
 
+export type PricedImportRow = ManualRow & {
+  url?: string | null;
+  sourceType?: UsedImportSource;
+};
+
 export type SaveManualResult = {
   saved: number;
   rejected: RejectedRow[];
 };
 
-export async function saveManualRows(
+export async function savePricedRows(
   prisma: PrismaClient,
-  rows: ManualRow[],
+  rows: PricedImportRow[],
+  fallbackSource: UsedImportSource = "MANUAL",
 ): Promise<SaveManualResult> {
   const { kept, rejected } = partitionPersistable(
     rows.map((row) => ({
@@ -78,20 +84,51 @@ export async function saveManualRows(
   let saved = 0;
   for (const r of kept) {
     const partId = await findOrCreatePart(prisma, r.name, r.category);
-    await prisma.priceSnapshot.deleteMany({
-      where: { partId, sourceType: SnapshotSource.MANUAL },
-    });
+    const sourceType = ((r as PricedImportRow).sourceType ?? fallbackSource) as SnapshotSource;
+    const sourceUrl = (r as PricedImportRow).url ?? null;
+
+    if (sourceType === SnapshotSource.MANUAL) {
+      await prisma.priceSnapshot.deleteMany({
+        where: { partId, sourceType: SnapshotSource.MANUAL },
+      });
+    } else if (sourceUrl) {
+      const existing = await prisma.priceSnapshot.findFirst({
+        where: { partId, sourceType, sourceUrl },
+        select: { id: true },
+      });
+      if (existing) {
+        await prisma.priceSnapshot.update({
+          where: { id: existing.id },
+          data: {
+            priceKrw: r.price,
+            condition: PartCondition.GOOD,
+            rawText: JSON.stringify({ source: sourceType, name: r.name, category: r.category }),
+          },
+        });
+        saved += 1;
+        continue;
+      }
+    }
+
     await prisma.priceSnapshot.create({
       data: {
         partId,
-        sourceType: SnapshotSource.MANUAL,
+        sourceType,
+        sourceUrl,
         priceKrw: r.price,
         condition: PartCondition.GOOD,
-        rawText: JSON.stringify({ source: "manual", name: r.name, category: r.category }),
+        rawText: JSON.stringify({ source: sourceType, name: r.name, category: r.category }),
       },
     });
     saved += 1;
   }
 
   return { saved, rejected };
+}
+
+export async function saveManualRows(
+  prisma: PrismaClient,
+  rows: ManualRow[],
+): Promise<SaveManualResult> {
+  return savePricedRows(prisma, rows, "MANUAL");
 }
