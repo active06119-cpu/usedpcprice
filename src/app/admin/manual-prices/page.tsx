@@ -133,49 +133,11 @@ export default function ManualPricesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-xl font-semibold text-zinc-900">부품 중고가 대량 입력</h1>
-      <p className="mt-1 text-sm text-zinc-600">미리보기는 바로, 저장은 20건씩 나눠 보냅니다.</p>
-
-      <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-medium text-zinc-800">DB 확인</p>
-            <p className="text-xs text-zinc-500">지금 price_snapshots에 듣인 MANUAL 시세입니다.</p>
-          </div>
-          <button
-            type="button"
-            onClick={checkDb}
-            disabled={checking}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 disabled:opacity-50"
-          >
-            {checking ? "확인 중..." : "다시 확인"}
-          </button>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-3 text-sm">
-          <span className="rounded-lg bg-zinc-50 px-3 py-1.5">오늘 {todayCount ?? "—"}건</span>
-          <span className="rounded-lg bg-zinc-50 px-3 py-1.5">전체 MANUAL {totalManual ?? "—"}건</span>
-        </div>
-        {checkError ? <p className="mt-2 text-xs text-red-600">{checkError}</p> : null}
-        {dbRows.length === 0 && !checking && !checkError ? (
-          <p className="mt-3 text-xs text-zinc-500">아직 저장된 MANUAL 시세가 없습니다.</p>
-        ) : (
-          <ul className="mt-3 space-y-1 text-xs text-zinc-700">
-            {dbRows.map((row) => (
-              <li key={row.id} className="flex flex-wrap justify-between gap-2 border-b border-zinc-100 py-1">
-                <span>
-                  {row.name} <span className="text-zinc-400">{row.category}</span>
-                </span>
-                <span className="tabular-nums">
-                  {krw(row.price)} · {new Date(row.savedAt).toLocaleString("ko-KR")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <p className="mt-1 text-sm text-zinc-600">미리보기 후 저장. 실제 DB 값은 아래 확인 칸에 뜨니다.</p>
 
       <textarea
-        className="mt-4 h-72 w-full rounded-lg border border-zinc-300 p-3 font-mono text-sm outline-none focus:border-zinc-500"
-        placeholder={"삼성 DDR4 8GB 5만원 https://www.daangn.com/...\n삼성 SSD 980 500GB\n15만원\nhttps://www.daangn.com/..."}
+        className="mt-4 h-64 w-full rounded-lg border border-zinc-300 p-3 font-mono text-sm outline-none focus:border-zinc-500"
+        placeholder={"RTX 5060 570,000원 https://www.bunjang.co.kr/products/429640263"}
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
@@ -190,6 +152,29 @@ export default function ManualPricesPage() {
       </div>
 
       {message ? <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800">{message}</p> : null}
+
+      <section className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-emerald-900">지금 DB에 있는 값</p>
+          <button type="button" onClick={checkDb} disabled={checking} className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs text-emerald-800 disabled:opacity-50">
+            {checking ? "읽는 중..." : "다시 확인"}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-emerald-800">오늘 {todayCount ?? "—"}건 · 전체 MANUAL {totalManual ?? "—"}건</p>
+        {checkError ? <p className="mt-2 text-xs text-red-600">{checkError}</p> : null}
+        {dbRows.length === 0 && !checking && !checkError ? (
+          <p className="mt-3 text-xs text-emerald-800">아직 MANUAL 시세가 없습니다.</p>
+        ) : (
+          <ul className="mt-3 space-y-1 text-xs text-zinc-800">
+            {dbRows.map((row) => (
+              <li key={row.id} className="flex flex-wrap justify-between gap-2 border-b border-emerald-100 py-1">
+                <span>{row.name} <span className="text-zinc-500">{row.category}</span></span>
+                <span className="tabular-nums">{krw(row.price)} · {new Date(row.savedAt).toLocaleString("ko-KR")}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {result?.filtered && result.filtered.length > 0 ? (
         <div className="mt-4">
