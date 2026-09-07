@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
-import type { AnalyzeResult } from "@/app/api/analyze/route";
 import {
   embedMarketMeta,
   isSchemaDriftError,
   normalizeMarketListing,
 } from "@/lib/market-listing-meta";
+import { parseMarketSourceUrl } from "@/lib/market-source";
 import { prisma } from "@/lib/prisma";
 
 const LEGACY_LISTING_SELECT = {
@@ -76,24 +76,19 @@ export async function POST(req: NextRequest) {
       valuationRunId?: string | null;
     };
 
-    if (!body.title?.trim() || !body.description?.trim() || !body.contact?.trim()) {
-      return NextResponse.json({ ok: false, message: "필수 입력값이 부족합니다." }, { status: 400 });
-    }
-    if (!body.sourceUrl?.trim()) {
-      return NextResponse.json({ ok: false, message: "원본 URL이 필요합니다." }, { status: 400 });
+    if (!body.title?.trim() || !body.description?.trim() || !body.sourceUrl?.trim()) {
+      return NextResponse.json({ ok: false, message: "제목, 본문, 원문 URL이 필요합니다." }, { status: 400 });
     }
     if (!Number.isFinite(body.priceKrw) || (body.priceKrw ?? 0) <= 0) {
       return NextResponse.json({ ok: false, message: "priceKrw가 올바르지 않습니다." }, { status: 400 });
     }
 
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(body.sourceUrl.trim());
-    } catch {
-      return NextResponse.json({ ok: false, message: "원본 URL 형식이 올바르지 않습니다." }, { status: 400 });
-    }
-    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-      return NextResponse.json({ ok: false, message: "http 또는 https URL만 등록할 수 있습니다." }, { status: 400 });
+    const parsedUrl = parseMarketSourceUrl(body.sourceUrl);
+    if (!parsedUrl) {
+      return NextResponse.json(
+        { ok: false, message: "당근·번개장터·네이버 카페 원문 URL만 등록할 수 있습니다." },
+        { status: 400 },
+      );
     }
 
     const baseData = {
@@ -102,7 +97,7 @@ export async function POST(req: NextRequest) {
       priceKrw: body.priceKrw as number,
       condition: (body.condition ?? "GOOD") as Prisma.PartCondition,
       location: body.location?.trim() || null,
-      contact: body.contact.trim(),
+      contact: parsedUrl.toString(),
       isFairVerified: Boolean(body.isFairVerified),
       fairPriceMid: Number.isFinite(body.fairPriceMid ?? NaN) ? (body.fairPriceMid as number) : null,
       valuationRunId: body.valuationRunId ?? null,
