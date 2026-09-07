@@ -1,8 +1,6 @@
 /**
  * 손수 입력 부품 중고가 파서.
- * 1) 탭/콤마 3열
- * 2) 한 줄 제목+가격+URL
- * 3) 제목 / 가격 / URL이 여러 줄인 경우
+ * GPU/CPU/RAM/SSD + 인기 칩셋 보드 + 와트 파워.
  */
 import { shouldPersistUsedPrice } from "../engine/pricing/guards";
 import { isValidPartName } from "./used-listing-guard";
@@ -32,6 +30,9 @@ export type ManualBadRow = { line: number; raw: string; reason: string };
 
 const SSD_MODEL =
   /\b(980|990|970|9100|870|860|850|830)\s*(pro|evo|plus)?\b|\b(sn\s*5\d{2}|sn\s*7\d{2}|sn\s*8\d{2}x?)\b|\b(p31|p41|p44|pm9a1|pm981|pm991|t500|t700|t705|t710|mx500|cras)\b/i;
+
+const CHIPSET =
+  /\b(a320|b360|b365|b450|b550|x570|a620|b650e|b650|x670e|x670|b840|b850|x870e|x870|h310|h410|h510|h610|h770|h810|b460|b560|b660|b760|b860|z390|z490|z590|z690|z790|z890)\b/i;
 
 const PRICE_ONLY = /^(\d[\d,]*)\s*만\s*원$|^(\d{1,3}(?:,\d{3})+|\d{4,})\s*원$/;
 const URL_FRAGMENT = /^[A-Za-z0-9%_\-./?=&#]+$/;
@@ -65,6 +66,10 @@ function inferCategory(title: string): string | null {
   if (/(ssd|nvme)/.test(t) || SSD_MODEL.test(t)) return "SSD";
   if (/(라이젠|ryzen|\bi[3579]\s*-?\d|\bcpu\b|씨피유)/.test(t)) return "CPU";
   if (/(hdd|하드)/.test(t)) return "HDD";
+  if (/(메인보드|메인보드|motherboard|mainboard|\bmobo\b|보드)/.test(t) || CHIPSET.test(t)) {
+    return "MOTHERBOARD";
+  }
+  if (/(파워서플라이|파워|\bpsu\b|\b\d{3,4}\s*w\b)/.test(t)) return "PSU";
   return null;
 }
 
@@ -104,6 +109,18 @@ function normalizePartName(title: string, category: string): string {
     if (tb) return `SSD ${tb[1]}TB`;
     const gb = cleaned.match(/(\d+)\s*(?:gb|g)\b/i);
     if (gb) return `SSD ${gb[1]}GB`;
+  }
+  if (category === "MOTHERBOARD") {
+    const chip = cleaned.match(CHIPSET);
+    if (chip) return chip[1].toUpperCase();
+  }
+  if (category === "PSU") {
+    const watt = cleaned.match(/(\d{3,4})\s*w/i);
+    if (watt) {
+      const n = Number(watt[1]);
+      const bucket = n >= 1000 ? 1000 : n >= 850 ? 850 : n >= 750 ? 750 : n >= 650 ? 650 : n >= 550 ? 550 : 500;
+      return `PSU ${bucket}W`;
+    }
   }
   return cleaned.slice(0, 80);
 }
