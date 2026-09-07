@@ -35,4 +35,21 @@ describe("parseManualPriceText freeform", () => {
       ["DDR4 8GB", "RAM", 50000],
     ]);
   });
+
+  it("keeps popular boards as chipset and powers as watt buckets", () => {
+    const text = [
+      "MSI B550M 메인보드 8만원 https://www.daangn.com/kr/buy-sell/b550",
+      "기가바이트 B650 보드 14만원 https://www.daangn.com/kr/buy-sell/b650",
+      "마막스 750W 골드 파워 6만원 https://www.daangn.com/kr/buy-sell/750w",
+      "시소닉 850W 파워 9만원 https://www.daangn.com/kr/buy-sell/850w",
+    ].join("\n");
+
+    const parsed = parseManualPriceText(text);
+    expect(parsed.rows.map((row) => [row.name, row.category, row.price])).toEqual([
+      ["B550", "MOTHERBOARD", 80000],
+      ["B650", "MOTHERBOARD", 140000],
+      ["PSU 750W", "PSU", 60000],
+      ["PSU 850W", "PSU", 90000],
+    ]);
+  });
 });
