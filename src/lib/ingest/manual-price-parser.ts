@@ -1,7 +1,8 @@
 /**
  * 손수 입력 부품 중고가 파서.
- * 1) 탭/콤마 3열: `부품명 \t 카테고리 \t 가격`
- * 2) 한 줄: `제목 11만원 https://...`
+ * 1) 탭/콤마 3열
+ * 2) 한 줄 제목+가격+URL
+ * 3) 제목 / 가격 / URL이 여러 줄인 경우
  */
 import { shouldPersistUsedPrice } from "../engine/pricing/guards";
 import { isValidPartName } from "./used-listing-guard";
@@ -31,6 +32,9 @@ export type ManualBadRow = { line: number; raw: string; reason: string };
 
 const SSD_MODEL =
   /\b(980|990|970|9100|870|860|850|830)\s*(pro|evo|plus)?\b|\b(sn\s*5\d{2}|sn\s*7\d{2}|sn\s*8\d{2}x?)\b|\b(p31|p41|p44|pm9a1|pm981|pm991|t500|t700|t705|t710|mx500|cras)\b/i;
+
+const PRICE_ONLY = /^(\d[\d,]*)\s*만\s*원$|^(\d{1,3}(?:,\d{3})+|\d{4,})\s*원$/;
+const URL_FRAGMENT = /^[A-Za-z0-9%_\-./?=&#]+$/;
 
 function normalizeCategory(raw: string): string | null {
   const up = raw.toUpperCase();
@@ -138,23 +142,36 @@ function parseTabularLine(trimmed: string): { name: string; category: string; pr
 function coalescePasteLines(lines: string[]): string[] {
   const out: string[] = [];
   let buf = "";
+  const flush = () => {
+    if (buf) out.push(buf);
+    buf = "";
+  };
+
   for (const raw of lines) {
     const trimmed = raw.replace(/^[\-\*•]\s*/, "").trim();
     if (!trimmed || trimmed === "---") continue;
+
+    if (buf.includes("http") && URL_FRAGMENT.test(trimmed) && !/^https?:/i.test(trimmed) && !PRICE_ONLY.test(trimmed)) {
+      buf += trimmed;
+      continue;
+    }
     if (/^https?:\/\//i.test(trimmed)) {
       buf = buf ? `${buf} ${trimmed}` : trimmed;
-      out.push(buf);
-      buf = "";
+      if (extractPriceKrw(buf)) flush();
+      continue;
+    }
+    if (PRICE_ONLY.test(trimmed) && buf) {
+      buf = `${buf} ${trimmed}`;
       continue;
     }
     if (extractPriceKrw(trimmed) && !inferCategory(trimmed) && buf) {
       buf = `${buf} ${trimmed}`;
       continue;
     }
-    if (buf) out.push(buf);
+    flush();
     buf = trimmed;
   }
-  if (buf) out.push(buf);
+  flush();
   return out;
 }
 
