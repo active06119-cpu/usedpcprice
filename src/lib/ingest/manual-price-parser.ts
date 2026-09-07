@@ -1,8 +1,8 @@
 /**
  * 손수 입력 부품 중고가 파서.
- * GPU/CPU/RAM/SSD + 인기 칩셋 보드 + 와트 파워.
  */
 import { shouldPersistUsedPrice } from "../engine/pricing/guards";
+import { extractSourceUrl } from "./listing-url";
 import { isValidPartName } from "./used-listing-guard";
 
 export const MANUAL_CATEGORIES = [
@@ -25,7 +25,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   기타: "OTHER",
 };
 
-export type ManualRow = { name: string; category: string; price: number; line: number };
+export type ManualRow = { name: string; category: string; price: number; line: number; url?: string | null };
 export type ManualBadRow = { line: number; raw: string; reason: string };
 
 const SSD_MODEL =
@@ -66,9 +66,7 @@ function inferCategory(title: string): string | null {
   if (/(ssd|nvme)/.test(t) || SSD_MODEL.test(t)) return "SSD";
   if (/(라이젠|ryzen|\bi[3579]\s*-?\d|\bcpu\b|씨피유)/.test(t)) return "CPU";
   if (/(hdd|하드)/.test(t)) return "HDD";
-  if (/(메인보드|메인보드|motherboard|mainboard|\bmobo\b|보드)/.test(t) || CHIPSET.test(t)) {
-    return "MOTHERBOARD";
-  }
+  if (/(메인보드|motherboard|mainboard|\bmobo\b|보드)/.test(t) || CHIPSET.test(t)) return "MOTHERBOARD";
   if (/(파워서플라이|파워|\bpsu\b|\b\d{3,4}\s*w\b)/.test(t)) return "PSU";
   return null;
 }
@@ -125,7 +123,8 @@ function normalizePartName(title: string, category: string): string {
   return cleaned.slice(0, 80);
 }
 
-function parseFreeformLine(trimmed: string): { name: string; category: string; price: number } | { reason: string } {
+function parseFreeformLine(trimmed: string): { name: string; category: string; price: number; url: string | null } | { reason: string } {
+  const url = extractSourceUrl(trimmed);
   const withoutUrl = trimmed.replace(/https?:\/\/\S+/gi, " ").replace(/\s+/g, " ").trim();
   const price = extractPriceKrw(withoutUrl);
   if (price === null) return { reason: "가격 없음" };
@@ -138,12 +137,14 @@ function parseFreeformLine(trimmed: string): { name: string; category: string; p
   if (!category) return { reason: "카테고리 추정 실패" };
   const name = normalizePartName(title, category);
   if (!isValidPartName(name)) return { reason: "부품명 이상" };
-  return { name, category, price };
+  return { name, category, price, url };
 }
 
-function parseTabularLine(trimmed: string): { name: string; category: string; price: number } | { reason: string } {
+function parseTabularLine(trimmed: string): { name: string; category: string; price: number; url: string | null } | { reason: string } {
+  const url = extractSourceUrl(trimmed);
   const cells = (trimmed.includes("\t") ? trimmed.split("\t") : trimmed.split(","))
-    .map((c) => c.trim());
+    .map((c) => c.trim())
+    .filter((c) => !/^https?:\/\//i.test(c));
   if (cells.length < 3) return { reason: "열이 3개 미만 (부품명/카테고리/가격)" };
 
   const priceStr = cells[cells.length - 1].replace(/[^0-9]/g, "");
@@ -153,7 +154,7 @@ function parseTabularLine(trimmed: string): { name: string; category: string; pr
   if (!isValidPartName(name)) return { reason: "부품명 이상" };
   if (!category) return { reason: `카테고리 '${cells[cells.length - 2]}' 인식 불가` };
   if (!Number.isFinite(price) || price <= 0) return { reason: "가격 이상" };
-  return { name, category, price };
+  return { name, category, price, url };
 }
 
 function coalescePasteLines(lines: string[]): string[] {
