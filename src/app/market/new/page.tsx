@@ -57,11 +57,7 @@ async function readAnalyzeStream(text: string): Promise<AnalyzeResult> {
   }
 
   if (buffer.trim()) handleLine(buffer);
-
-  if (!finalResult) {
-    throw new Error("분석 결과를 받지 못했습니다.");
-  }
-
+  if (!finalResult) throw new Error("분석 결과를 받지 못했습니다.");
   return finalResult;
 }
 
@@ -70,73 +66,48 @@ function parsePriceInput(raw: string): number | null {
   return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : null;
 }
 
-function buildAnalyzeText(title: string, description: string, priceKrw: number): string {
-  return `${title.trim()}\n${description.trim()}\n${priceKrw.toLocaleString("ko-KR")}원\n${priceKrw}원`;
-}
-
 export default function NewMarketListingPage() {
   const [sourceUrl, setSourceUrl] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priceKrw, setPriceKrw] = useState("");
   const [location, setLocation] = useState("");
-  const [contact, setContact] = useState("");
-
   const [analyzing, setAnalyzing] = useState(false);
   const [registering, setRegistering] = useState(false);
-  const [streamMessage, setStreamMessage] = useState("");
   const [message, setMessage] = useState("");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
   const [analyzedPrice, setAnalyzedPrice] = useState<number | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   function validateForm(): number | null {
-    if (!sourceUrl.trim() || !title.trim() || !description.trim() || !priceKrw.trim() || !contact.trim()) {
-      setMessage("필수 항목을 모두 입력해주세요.");
+    if (!sourceUrl.trim() || !title.trim() || !description.trim() || !priceKrw.trim()) {
+      setMessage("원문 URL, 제목, 본문, 가격을 입력해주세요.");
       return null;
     }
-
-    try {
-      const url = new URL(sourceUrl.trim());
-      if (!["http:", "https:"].includes(url.protocol)) {
-        setMessage("원본 URL은 http 또는 https로 시작해야 합니다.");
-        return null;
-      }
-    } catch {
-      setMessage("원본 URL 형식이 올바르지 않습니다.");
-      return null;
-    }
-
     const numericPrice = parsePriceInput(priceKrw);
     if (!numericPrice) {
       setMessage("판매가를 올바른 숫자로 입력해주세요.");
       return null;
     }
-
     return numericPrice;
   }
 
   async function onAnalyze() {
     const numericPrice = validateForm();
     if (!numericPrice) return;
-
     setAnalyzing(true);
     setMessage("");
     setAnalysis(null);
     setAnalyzedPrice(null);
-    setStreamMessage("분석 준비 중...");
-
     try {
-      const result = await readAnalyzeStream(buildAnalyzeText(title, description, numericPrice));
+      const result = await readAnalyzeStream(`${title.trim()}\n${description.trim()}\n${numericPrice}원`);
       setAnalysis(result);
       setAnalyzedPrice(numericPrice);
       setMessage("분석이 완료되었습니다. 결과를 확인한 뒤 등록해주세요.");
     } catch (e) {
-      const err = e as Error;
-      setMessage(err.message || "분석 중 오류가 발생했습니다.");
+      setMessage(e instanceof Error ? e.message : "분석 중 오류가 발생했습니다.");
     } finally {
       setAnalyzing(false);
-      setStreamMessage("");
     }
   }
 
@@ -145,15 +116,12 @@ export default function NewMarketListingPage() {
       setMessage("이용약관 및 개인정보처리방침에 동의해주세요.");
       return;
     }
-
     if (!analysis || analyzedPrice === null) {
       setMessage("먼저 분석을 실행해주세요.");
       return;
     }
-
     const numericPrice = validateForm();
     if (!numericPrice) return;
-
     if (numericPrice !== analyzedPrice) {
       setMessage("판매가가 변경되었습니다. 다시 분석해주세요.");
       setAnalysis(null);
@@ -163,10 +131,7 @@ export default function NewMarketListingPage() {
 
     setRegistering(true);
     setMessage("");
-
     try {
-      const isFairVerified = analysis.verdict === "FAIR" || analysis.verdict === "CHEAP";
-
       const createRes = await fetch("/api/market/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,53 +141,39 @@ export default function NewMarketListingPage() {
           priceKrw: numericPrice,
           condition: "GOOD",
           location: location.trim() || null,
-          contact: contact.trim(),
           sourceUrl: sourceUrl.trim(),
           verdict: analysis.verdict,
-          isFairVerified,
+          isFairVerified: analysis.verdict === "FAIR" || analysis.verdict === "CHEAP",
           fairPriceMid: analysis.totalFairMid,
         }),
       });
-
-      const raw = await createRes.text();
-      let createData: { ok?: boolean; message?: string };
-      try {
-        createData = JSON.parse(raw) as { ok?: boolean; message?: string };
-      } catch {
-        throw new Error("등록 응답을 해석하지 못했습니다.");
-      }
-      if (!createRes.ok || !createData.ok) {
-        throw new Error(createData.message ?? "등록 실패");
-      }
-
+      const createData = (await createRes.json()) as { ok?: boolean; message?: string };
+      if (!createRes.ok || !createData.ok) throw new Error(createData.message ?? "등록 실패");
       setMessage("매물이 등록되었습니다.");
       setSourceUrl("");
       setTitle("");
       setDescription("");
       setPriceKrw("");
       setLocation("");
-      setContact("");
       setAnalysis(null);
       setAnalyzedPrice(null);
       setAgreedToTerms(false);
     } catch (e) {
-      const err = e as Error;
-      setMessage(err.message || "등록 중 오류가 발생했습니다.");
+      setMessage(e instanceof Error ? e.message : "등록 중 오류가 발생했습니다.");
     } finally {
       setRegistering(false);
     }
   }
 
-  const isFairVerified =
-    analysis?.verdict === "FAIR" || analysis?.verdict === "CHEAP";
+  const isFairVerified = analysis?.verdict === "FAIR" || analysis?.verdict === "CHEAP";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">매물 올리기</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900">원문 매물 올리기</h1>
           <p className="mt-2 text-sm text-zinc-600">
-            원본 링크와 매물 본문으로 적정가를 분석한 뒤 마켓에 등록합니다.
+            당근·번개 링크와 글을 넣으면 시세를 붙여 보여 줍니다. 거래는 원문 사이트에서 합니다.
           </p>
         </div>
         <Link href="/market" className="text-sm text-zinc-600 underline hover:text-zinc-900">
@@ -232,32 +183,24 @@ export default function NewMarketListingPage() {
 
       <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5">
         <div>
-          <label className="text-sm font-medium text-zinc-700">
-            원본 URL <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-medium text-zinc-700">원문 URL</label>
           <input
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
-            placeholder="당근/번개장터/중고나라 링크"
+            placeholder="https://www.daangn.com/... 또는 https://www.bunjang.co.kr/..."
             className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
           />
         </div>
-
         <div>
-          <label className="text-sm font-medium text-zinc-700">
-            제목 <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-medium text-zinc-700">제목</label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
           />
         </div>
-
         <div>
-          <label className="text-sm font-medium text-zinc-700">
-            판매가 (원) <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-medium text-zinc-700">판매가 (원)</label>
           <input
             value={priceKrw}
             onChange={(e) => {
@@ -268,15 +211,11 @@ export default function NewMarketListingPage() {
               }
             }}
             inputMode="numeric"
-            placeholder="1200000"
             className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
           />
         </div>
-
         <div>
-          <label className="text-sm font-medium text-zinc-700">
-            매물 본문 <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-medium text-zinc-700">매물 본문</label>
           <textarea
             value={description}
             onChange={(e) => {
@@ -287,113 +226,48 @@ export default function NewMarketListingPage() {
               }
             }}
             rows={8}
-            placeholder="원본 매물 설명을 그대로 붙여넣어주세요."
+            placeholder="원문 글을 그대로 붙여넣으세요."
             className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
           />
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium text-zinc-700">지역 (선택)</label>
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="예: 창원 의창구"
-              className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-zinc-700">
-              연락처 <span className="text-red-500">*</span>
-            </label>
-            <input
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="카카오 오픈채팅 링크 또는 전화번호"
-              className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-            />
-          </div>
+        <div>
+          <label className="text-sm font-medium text-zinc-700">지역 (선택)</label>
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+          />
         </div>
-
-        <div className="flex flex-wrap justify-end gap-2 pt-2">
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={onAnalyze}
             disabled={analyzing || registering}
             className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {analyzing ? "분석 중..." : "분석 + 등록하기"}
+            {analyzing ? "분석 중..." : "시세 분석"}
           </button>
         </div>
 
-        {analyzing && streamMessage ? (
-          <p className="text-sm text-emerald-700">{streamMessage}</p>
-        ) : null}
-
         {analysis ? (
           <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-700">
-            <p className="font-medium text-zinc-900">분석 미리보기</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${
-                  VERDICT_STYLE[analysis.verdict] ?? VERDICT_STYLE.NO_PRICE
-                }`}
-              >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${VERDICT_STYLE[analysis.verdict] ?? VERDICT_STYLE.NO_PRICE}`}>
                 {analysis.verdictKo}
               </span>
               {isFairVerified ? (
                 <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                  ✓ 적정가 인증 가능
+                  적정가
                 </span>
               ) : null}
             </div>
             <p className="mt-3">{analysis.verdictReason}</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              <div className="rounded-lg bg-white px-3 py-2">
-                <div className="text-xs text-zinc-500">하한가</div>
-                <div className="font-semibold text-zinc-900">{krw(analysis.totalFairLow)}</div>
-              </div>
-              <div className="rounded-lg bg-white px-3 py-2">
-                <div className="text-xs text-zinc-500">적정가</div>
-                <div className="font-semibold text-emerald-800">{krw(analysis.totalFairMid)}</div>
-              </div>
-              <div className="rounded-lg bg-white px-3 py-2">
-                <div className="text-xs text-zinc-500">상한가</div>
-                <div className="font-semibold text-zinc-900">{krw(analysis.totalFairHigh)}</div>
-              </div>
-            </div>
-            {analysis.warnings.length > 0 ? (
-              <ul className="mt-3 space-y-1 text-xs text-amber-800">
-                {analysis.warnings.map((warning) => (
-                  <li key={warning}>• {warning}</li>
-                ))}
-              </ul>
-            ) : null}
-            <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-zinc-700">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-              />
+            <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm">
+              <input type="checkbox" checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} className="mt-0.5" />
               <span>
-                <Link
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-teal-600 underline hover:text-teal-700"
-                >
-                  이용약관
-                </Link>
+                <Link href="/terms" className="underline">이용약관</Link>
                 {" 및 "}
-                <Link
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-teal-600 underline hover:text-teal-700"
-                >
-                  개인정보처리방침
-                </Link>
+                <Link href="/privacy" className="underline">개인정보처리방침</Link>
                 에 동의합니다
               </span>
             </label>
@@ -401,24 +275,17 @@ export default function NewMarketListingPage() {
               <button
                 type="button"
                 onClick={onRegister}
-                disabled={registering || analyzing || !agreedToTerms}
-                className="rounded-xl border border-emerald-300 bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                disabled={registering || !agreedToTerms}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
-                {registering ? "등록 중..." : "이 가격으로 등록"}
+                {registering ? "등록 중..." : "장터에 올리기"}
               </button>
             </div>
           </div>
         ) : null}
 
-        {message ? (
-          <p className={`text-sm ${message.includes("완료") || message.includes("등록") ? "text-emerald-700" : "text-zinc-700"}`}>
-            {message}
-          </p>
-        ) : null}
-
-        <p className="text-xs text-zinc-400">
-          게시 내용에 대한 책임은 작성자에게 있습니다.
-        </p>
+        {message ? <p className="text-sm text-zinc-700">{message}</p> : null}
+        <p className="text-xs text-zinc-400">이 사이트는 대금을 보관하지 않습니다. 거래는 원문 매물 페이지에서 진행하세요.</p>
       </section>
     </main>
   );
