@@ -20,4 +20,19 @@ describe("parseManualPriceText freeform", () => {
       ["DDR4 8GB", "RAM", 50000],
     ]);
   });
+
+  it("joins a title, price, and url split onto three lines", () => {
+    const text = [
+      "삼성 SSD 980 500GB 단순개봉, 사용X",
+      "15만원",
+      "https://www.daangn.com/kr/buy-sell/samsung-ssd-980-500gb",
+      "삼성 DDR4 8GB 2666 램 5만원 https://www.daangn.com/kr/buy-sell/ddr4-8gb-2666",
+    ].join("\n");
+
+    const parsed = parseManualPriceText(text);
+    expect(parsed.rows.map((row) => [row.name, row.category, row.price])).toEqual([
+      ["SSD 500GB", "SSD", 150000],
+      ["DDR4 8GB", "RAM", 50000],
+    ]);
+  });
 });
