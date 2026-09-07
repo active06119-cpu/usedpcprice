@@ -100,11 +100,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { saved, rejected } = await saveManualRows(prisma, parsed.rows);
+    const { saved, skipped, rejected } = await saveManualRows(prisma, parsed.rows);
     return NextResponse.json({
       ok: true,
       applied: true,
       saved,
+      skipped,
       filteredCount: parsed.bad.length + rejected.length,
       filtered: [
         ...parsed.bad,
