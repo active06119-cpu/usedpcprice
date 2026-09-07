@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import "./globals.css";
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "중고컴퓨터 시세계산기",
-  description: "중고 컴퓨터·부품 적정가를 확인하세요. 호구 잡히지 말고 사기 전에 시세 확인.",
+  description: "중고 컴퓨터·부품 적정가를 확인하세요. 사기 전에 시세 확인.",
 };
 
 export default function RootLayout({
@@ -26,9 +27,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col bg-zinc-50">
         <SiteHeader />
-        <div className="flex-1">{children}</div>
+        <div className="flex-1">
+          <PublicShell>{children}</PublicShell>
+        </div>
         <SiteFooter />
       </body>
     </html>
