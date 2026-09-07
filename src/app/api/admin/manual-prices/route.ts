@@ -9,6 +9,50 @@ import { saveManualRows } from "@/lib/ingest/manual-price-writer";
 export const maxDuration = 60;
 export const runtime = "nodejs";
 
+export async function GET(req: Request) {
+  try {
+    const guard = guardAdminRequest(req);
+    if (guard) return guard;
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const [todayCount, totalManual, recent] = await Promise.all([
+      prisma.priceSnapshot.count({
+        where: { sourceType: "MANUAL", capturedAt: { gte: start } },
+      }),
+      prisma.priceSnapshot.count({ where: { sourceType: "MANUAL" } }),
+      prisma.priceSnapshot.findMany({
+        where: { sourceType: "MANUAL" },
+        orderBy: { capturedAt: "desc" },
+        take: 15,
+        select: {
+          id: true,
+          priceKrw: true,
+          capturedAt: true,
+          part: { select: { fullName: true, category: true } },
+        },
+      }),
+    ]);
+
+    return NextResponse.json({
+      ok: true,
+      todayCount,
+      totalManual,
+      recent: recent.map((row) => ({
+        id: row.id,
+        name: row.part.fullName,
+        category: row.part.category,
+        price: row.priceKrw,
+        savedAt: row.capturedAt,
+      })),
+    });
+  } catch (error) {
+    console.error("[manual-prices GET]", error);
+    return NextResponse.json({ ok: false, message: "확인에 실패했습니다." }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const guard = guardAdminRequest(req);
@@ -57,18 +101,15 @@ export async function POST(req: Request) {
     }
 
     const { saved, rejected } = await saveManualRows(prisma, parsed.rows);
-    const extraFiltered = rejected.map((row) => ({
-      line: 0,
-      raw: row.name,
-      reason: row.reason,
-    }));
-
     return NextResponse.json({
       ok: true,
       applied: true,
       saved,
       filteredCount: parsed.bad.length + rejected.length,
-      filtered: [...parsed.bad, ...extraFiltered].slice(0, 100),
+      filtered: [
+        ...parsed.bad,
+        ...rejected.map((row) => ({ line: 0, raw: row.name, reason: row.reason })),
+      ].slice(0, 100),
     });
   } catch (error) {
     console.error("[manual-prices]", error);
