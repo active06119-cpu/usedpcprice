@@ -16,6 +16,8 @@ type ViewState = {
   filtered: FilteredRow[];
 };
 
+const CHUNK = 20;
+
 export default function ManualPricesPage() {
   const adminToken = process.env.NEXT_PUBLIC_ADMIN_API_TOKEN ?? "";
   const [text, setText] = useState("");
@@ -51,36 +53,33 @@ export default function ManualPricesPage() {
 
     setLoading(true);
     setMessage(null);
+    let saved = 0;
     try {
-      const res = await fetch("/api/admin/manual-prices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
-        credentials: "include",
-        body: JSON.stringify({ text, apply: true }),
-      });
-      const raw = await res.text();
-      let data: { ok?: boolean; saved?: number; filteredCount?: number; filtered?: FilteredRow[]; message?: string };
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        setMessage(`서버 저장이 글자 응답만 줬습니다. (${res.status}) ${raw.slice(0, 180)}`);
-        return;
-      }
-      if (!res.ok || !data.ok) {
-        setMessage(data.message ?? "저장에 실패했습니다.");
-        if (data.filtered) {
-          setResult((prev) =>
-            prev
-              ? { ...prev, filtered: data.filtered ?? prev.filtered, filteredCount: data.filteredCount ?? prev.filteredCount }
-              : prev,
-          );
+      for (let i = 0; i < parsed.rows.length; i += CHUNK) {
+        const chunk = parsed.rows.slice(i, i + CHUNK);
+        setMessage(`저장 중... ${Math.min(i + chunk.length, parsed.rows.length)}/${parsed.rows.length}`);
+        const res = await fetch("/api/admin/manual-prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+          credentials: "include",
+          body: JSON.stringify({ apply: true, rows: chunk }),
+        });
+        const raw = await res.text();
+        let data: { ok?: boolean; saved?: number; message?: string };
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          setMessage(`서버 저장이 글자 응답만 줬습니다. (${res.status}) ${raw.slice(0, 180)}`);
+          return;
         }
-        return;
+        if (!res.ok || !data.ok) {
+          setMessage(data.message ?? `저장 실패 (${i + 1}번째 묶음)`);
+          return;
+        }
+        saved += data.saved ?? chunk.length;
       }
-      setMessage(`저장 완료: ${data.saved ?? 0}건 (걸러짐 ${data.filteredCount ?? 0}건)`);
-      setResult((prev) =>
-        prev ? { ...prev, applied: true, saved: data.saved ?? 0, filteredCount: data.filteredCount ?? prev.filteredCount } : prev,
-      );
+      setMessage(`저장 완료: ${saved}건 (걸러짐 ${parsed.bad.length}건)`);
+      setResult((prev) => (prev ? { ...prev, applied: true, saved } : prev));
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "저장 중 오류가 발생했습니다.");
     } finally {
@@ -93,7 +92,7 @@ export default function ManualPricesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-xl font-semibold text-zinc-900">부품 중고가 대량 입력</h1>
-      <p className="mt-1 text-sm text-zinc-600">미리보기는 이 화면에서 바로 됩니다. 저장만 서버로 갑니다.</p>
+      <p className="mt-1 text-sm text-zinc-600">미리보기는 바로, 저장은 20건씩 나눠 보냅니다.</p>
 
       <textarea
         className="mt-4 h-72 w-full rounded-lg border border-zinc-300 p-3 font-mono text-sm outline-none focus:border-zinc-500"
@@ -103,27 +102,15 @@ export default function ManualPricesPage() {
       />
 
       <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={preview}
-          disabled={text.trim().length === 0}
-          className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 disabled:opacity-50"
-        >
+        <button type="button" onClick={preview} disabled={text.trim().length === 0} className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 disabled:opacity-50">
           미리보기
         </button>
-        <button
-          type="button"
-          onClick={save}
-          disabled={loading || text.trim().length === 0}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
+        <button type="button" onClick={save} disabled={loading || text.trim().length === 0} className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
           {loading ? "저장 중..." : "저장"}
         </button>
       </div>
 
-      {message ? (
-        <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800">{message}</p>
-      ) : null}
+      {message ? <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800">{message}</p> : null}
 
       {result?.filtered && result.filtered.length > 0 ? (
         <div className="mt-4">
