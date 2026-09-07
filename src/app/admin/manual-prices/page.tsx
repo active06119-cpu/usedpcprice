@@ -16,13 +16,12 @@ type ApiResult = {
   message?: string;
 };
 
-const PLACEHOLDER = `엑셀에서 복사해서 붙여넣거나, 직접 입력하세요. 한 줄에 부품 하나:
+const PLACEHOLDER = `당근/번개 글을 그대로 붙여넣으세요. 한 줄이거나 제목/가격/URL이 나늀 있어도 됩니다.
 
-RTX 4070 SUPER	GPU	620000
-i5-13600K	CPU	230000
-Samsung 980 PRO 1TB	SSD	110000
-
-(탭·콤마 둘 다 인식 / 카테고리는 GPU·CPU·RAM·SSD·HDD·MOTHERBOARD·PSU·CASE·COOLER·MONITOR 또는 그래픽카드·씨피유 등 한글도 가능)`;
+삼성 DDR4 8GB 5만원 https://www.daangn.com/...
+삼성 SSD 980 500GB
+15만원
+https://www.daangn.com/...`;
 
 export default function ManualPricesPage() {
   const adminToken = process.env.NEXT_PUBLIC_ADMIN_API_TOKEN ?? "";
@@ -40,7 +39,17 @@ export default function ManualPricesPage() {
         headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
         body: JSON.stringify({ text, apply }),
       });
-      const data = (await res.json()) as ApiResult;
+      const raw = await res.text();
+      let data: ApiResult;
+      try {
+        data = JSON.parse(raw) as ApiResult;
+      } catch {
+        setResult(null);
+        setMessage(
+          `서버가 JSON 대신 오류 문구를 보냈습니다. (${res.status}) ${raw.slice(0, 160)}`,
+        );
+        return;
+      }
       if (!res.ok || !data.ok) {
         setMessage(data.message ?? "실패했습니다.");
         setResult(data.filtered ? data : null);
@@ -49,7 +58,7 @@ export default function ManualPricesPage() {
       setResult(data);
       setMessage(
         apply
-          ? `✅ 저장 완료: ${data.saved ?? 0}건 (걸러짐 ${data.filteredCount ?? 0}건)`
+          ? `저장 완료: ${data.saved ?? 0}건 (걸러짐 ${data.filteredCount ?? 0}건)`
           : `미리보기: 저장 가능 ${data.validCount ?? 0}건 / 걸러짐 ${data.filteredCount ?? 0}건`,
       );
     } catch (e) {
@@ -65,7 +74,7 @@ export default function ManualPricesPage() {
     <main className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-xl font-semibold text-zinc-900">부품 중고가 대량 입력</h1>
       <p className="mt-1 text-sm text-zinc-600">
-        인기 부품의 중고 시세를 직접 넣습니다. 붙여넣기 → 미리보기 → 저장. (MANUAL 소스로 시세에 바로 반영)
+        붙여넣기 → 미리보기 → 저장. 단품 시세에만 듣갑니다.
       </p>
 
       <textarea
