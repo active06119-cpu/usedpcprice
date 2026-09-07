@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 import { isSchemaDriftError, normalizeMarketListing } from "@/lib/market-listing-meta";
+import { sourceLabel } from "@/lib/market-source";
 import { prisma } from "@/lib/prisma";
 
-// 요청 시점에 렌더 (빌드 때 DB 안 찌르고, 항상 최신 매물 표시)
 export const dynamic = "force-dynamic";
 
 const CONDITION_KO: Record<string, string> = {
@@ -71,9 +71,11 @@ export default async function MarketPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-10">
-      <div className="mb-6 text-center">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900">장터</h1>
-        <p className="mt-2 text-zinc-600">적정가로 검증된 중고 매물. 호구 걱정 없이 둘러보세요.</p>
+        <p className="mt-2 text-zinc-600">
+          시세를 보고 올려 둔 매물 목록입니다. 거래는 원문 칃은·번개 페이지에서 합니다.
+        </p>
       </div>
 
       <form className="mb-6 flex items-center gap-2">
@@ -100,7 +102,7 @@ export default async function MarketPage({ searchParams }: Props) {
                 <h2 className="line-clamp-2 text-sm font-semibold text-zinc-900">{item.title}</h2>
                 {item.isFairVerified ? (
                   <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                    ✓ 적정가
+                    적정가
                   </span>
                 ) : item.verdict && VERDICT_KO[item.verdict] ? (
                   <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${VERDICT_STYLE[item.verdict] ?? ""}`}>
@@ -121,8 +123,13 @@ export default async function MarketPage({ searchParams }: Props) {
               </div>
 
               {item.sourceUrl ? (
-                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-medium text-emerald-700 hover:underline">
-                  매물 보러가기 →
+                <a
+                  href={item.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white"
+                >
+                  {sourceLabel(item.sourceUrl)} 원문 보기
                 </a>
               ) : null}
             </article>
@@ -132,7 +139,7 @@ export default async function MarketPage({ searchParams }: Props) {
 
       <div className="mt-8 text-center">
         <Link href="/market/new" className="text-sm text-zinc-500 underline hover:text-zinc-800">
-          내 매물 올리기
+          원문 매물 올리기
         </Link>
       </div>
     </main>
