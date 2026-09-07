@@ -1,19 +1,18 @@
 /**
- * 조립PC 호구 판정 코어 (관리자·소비자 라우트 공용).
- * 텍스트/이미지 → Claude로 부품 분해 → 부품별 시세 합 + 잔부품 정액 → 판정 + 기록 저장.
+ * 조립PC 호구 판정 코어.
  */
 import type { PrismaClient } from "@prisma/client";
 import { ListingInputType, ParseStatus, ValuationType } from "@prisma/client";
 
 import { basisLabel } from "./pricing/layered";
+import { canonicalPartName } from "./pricing/canonical-name";
+import { estimateUsedBand } from "./pricing/estimate-band";
 import { findPartId, resolvePartUsedBand } from "./pricing/resolve-part";
 
-/** 케이스·쿨러·팬·케이블 등 개별로 안 세는 잔부품 정액 */
 export const MISC_ALLOWANCE = 50_000;
-/** 개별 시세를 안 매기고 잔부품 정액에 포함하는 카테고리 */
 const MINOR_CATEGORIES = new Set(["CASE", "COOLER", "MONITOR", "OTHER"]);
 
-const DECOMPOSE_SYSTEM = `너는 중고 조립PC 매물에서 부품 구성을 뽑아내는 분석기다.
+const DECOMPOSE_SYSTEM = `너는 중고 조립PC 매물에서 부품 구성을 뿐아내는 분석기다.
 매물 텍스트/이미지에서 들어있는 PC 부품을 추출해 extract_components 도구로 보고한다.
 - 각 부품: category, name(영문 표준 모델명, 예: "RTX 4060 Ti", "Ryzen 5 7500F", "Samsung DDR5 16GB")
 - 그래픽카드/CPU/램/SSD/메인보드/파워 위주로. 케이스·쿨러는 모델명 알면 넣되 모르면 생략.
@@ -30,6 +29,15 @@ export type PricedItem = {
   low: number;
   high: number;
   basis: string;
+  sampleSize: number;
+};
+
+export type UnpricedItem = {
+  name: string;
+  category: string;
+  estimateLow: number | null;
+  estimateMid: number | null;
+  estimateHigh: number | null;
 };
 
 export type ValuationResult = {
@@ -39,7 +47,7 @@ export type ValuationResult = {
   fairHigh: number;
   miscAllowance: number;
   priced: PricedItem[];
-  unpriced: Array<{ name: string; category: string }>;
+  unpriced: UnpricedItem[];
   misc: Array<{ name: string; category: string }>;
   verdict: string | null;
   verdictKo: string;
@@ -118,7 +126,7 @@ async function decompose(input: { text?: string; image?: ImageInput }): Promise<
 
 function verdict(asking: number, fairMid: number): { code: string; ko: string } {
   const ratio = asking / fairMid;
-  if (ratio <= 0.85) return { code: "CHEAP", ko: "싸다 👍" };
+  if (ratio <= 0.85) return { code: "CHEAP", ko: "싸다 퇴" };
   if (ratio <= 1.05) return { code: "FAIR", ko: "적정가" };
   if (ratio <= 1.25) return { code: "OVERPRICED", ko: "약간 비쌈" };
   return { code: "WAY_OVERPRICED", ko: "많이 비쌈 ⚠️" };
@@ -163,7 +171,6 @@ async function saveRecord(
   }
 }
 
-/** 조립PC 판정 (분해 → 시세 합 → 판정 → 기록 저장). */
 export async function valuatePc(
   prisma: PrismaClient,
   input: { text?: string; image?: ImageInput; askingPriceKrw?: number | null },
@@ -177,7 +184,7 @@ export async function valuatePc(
       : totalPriceKrw;
 
   const priced: PricedItem[] = [];
-  const unpriced: Array<{ name: string; category: string }> = [];
+  const unpriced: UnpricedItem[] = [];
   const misc: Array<{ name: string; category: string }> = [];
 
   for (const c of components) {
@@ -185,7 +192,10 @@ export async function valuatePc(
       misc.push({ name: c.name, category: c.category });
       continue;
     }
-    const partId = await findPartId(prisma, c.name, c.category, { loose: false });
+    const canonical = canonicalPartName(c.name, c.category);
+    const partId =
+      (await findPartId(prisma, c.name, c.category, { loose: false })) ??
+      (canonical !== c.name ? await findPartId(prisma, canonical, c.category, { loose: false }) : null);
     const band = partId ? await resolvePartUsedBand(prisma, partId, c.category) : null;
     if (partId && band) {
       priced.push({
@@ -196,9 +206,17 @@ export async function valuatePc(
         low: band.usedLow,
         high: band.usedHigh,
         basis: basisLabel(band),
+        sampleSize: band.listingSampleSize,
       });
     } else {
-      unpriced.push({ name: c.name, category: c.category });
+      const estimate = estimateUsedBand(c.name, c.category) ?? estimateUsedBand(canonical, c.category);
+      unpriced.push({
+        name: c.name,
+        category: c.category,
+        estimateLow: estimate?.low ?? null,
+        estimateMid: estimate?.mid ?? null,
+        estimateHigh: estimate?.high ?? null,
+      });
     }
   }
 
