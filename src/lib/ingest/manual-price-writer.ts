@@ -1,12 +1,13 @@
 /**
  * 파싱된 부품 중고가 DB 저장.
- * 관찰치는 시세 샘플로 추가한다. 같은 부품의 이전 MANUAL 행을 지우지 않는다.
+ * 같은 sourceUrl은 다시 넣지 않는다.
  */
 import type { PrismaClient } from "@prisma/client";
 import { PartCategory, PartCondition, SnapshotSource } from "@prisma/client";
 
 import { generateAliases } from "./part-alias";
 import type { ManualRow } from "./manual-price-parser";
+import { normalizeSourceUrl } from "./listing-url";
 import { partitionPersistable, type RejectedRow } from "./used-listing-guard";
 import type { UsedImportSource } from "./used-source";
 
@@ -70,6 +71,7 @@ export type PricedImportRow = ManualRow & {
 
 export type SaveManualResult = {
   saved: number;
+  skipped: number;
   rejected: RejectedRow[];
 };
 
@@ -85,19 +87,48 @@ export async function savePricedRows(
     })),
   );
 
+  const withUrl = kept.map((row) => ({
+    ...row,
+    url: normalizeSourceUrl((row as PricedImportRow).url ?? "") ?? (row as PricedImportRow).url ?? null,
+  }));
+
+  const urls = [...new Set(withUrl.map((row) => row.url).filter((url): url is string => Boolean(url)))];
+  const existing = new Set<string>();
+  if (urls.length > 0) {
+    const found = await prisma.priceSnapshot.findMany({
+      where: { sourceUrl: { in: urls } },
+      select: { sourceUrl: true },
+    });
+    for (const row of found) {
+      if (row.sourceUrl) existing.add(row.sourceUrl);
+    }
+  }
+
+  const fresh: typeof withUrl = [];
+  const seen = new Set<string>();
+  let skipped = 0;
+  for (const row of withUrl) {
+    if (row.url && (existing.has(row.url) || seen.has(row.url))) {
+      skipped += 1;
+      continue;
+    }
+    if (row.url) seen.add(row.url);
+    fresh.push(row);
+  }
+
   const idCache = new Map<string, string>();
   const unique = new Map<string, { name: string; category: string }>();
-  for (const row of kept) unique.set(partKey(row.name, row.category), { name: row.name, category: row.category });
+  for (const row of fresh) unique.set(partKey(row.name, row.category), { name: row.name, category: row.category });
 
   const names = [...unique.values()].map((item) => item.name);
   if (names.length > 0) {
-    const existing = await prisma.part.findMany({
+    const existingParts = await prisma.part.findMany({
       where: {
         OR: [{ fullName: { in: names, mode: "insensitive" } }, { modelName: { in: names, mode: "insensitive" } }],
       },
       select: { id: true, fullName: true, modelName: true, category: true },
     });
-    for (const part of existing) {
+    for (const part of existingParts) {
       idCache.set(partKey(part.fullName, part.category), part.id);
       idCache.set(partKey(part.modelName, part.category), part.id);
     }
@@ -111,12 +142,12 @@ export async function savePricedRows(
     }
   }
 
-  const snapshotRows = kept.map((row) => {
+  const snapshotRows = fresh.map((row) => {
     const sourceType = ((row as PricedImportRow).sourceType ?? fallbackSource) as SnapshotSource;
     return {
       partId: idCache.get(partKey(row.name, row.category)) as string,
       sourceType,
-      sourceUrl: (row as PricedImportRow).url ?? null,
+      sourceUrl: row.url,
       priceKrw: row.price,
       condition: PartCondition.GOOD,
       rawText: JSON.stringify({ source: sourceType, name: row.name, category: row.category }),
@@ -127,7 +158,7 @@ export async function savePricedRows(
     await prisma.priceSnapshot.createMany({ data: snapshotRows });
   }
 
-  return { saved: snapshotRows.length, rejected };
+  return { saved: snapshotRows.length, skipped, rejected };
 }
 
 export async function saveManualRows(
