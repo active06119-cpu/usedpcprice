@@ -1,6 +1,6 @@
 /**
  * 파싱된 부품 중고가 DB 저장.
- * MANUAL은 부품당 1개로 교체, DAANGN/BUNJANG은 URL이 같으면 업데이트.
+ * 관찰치는 시세 샘플로 추가한다. 같은 부품의 이전 MANUAL 행을 지우지 않는다.
  */
 import type { PrismaClient } from "@prisma/client";
 import { PartCategory, PartCondition, SnapshotSource } from "@prisma/client";
@@ -18,6 +18,10 @@ export function extractBrand(name: string): string {
   if (/\b(i[3579]|core|xeon)\b/.test(n)) return "Intel";
   if (/삼성|samsung/.test(n)) return "Samsung";
   return name.split(/\s+/)[0] || "ETC";
+}
+
+function partKey(name: string, category: string): string {
+  return `${category}::${name.trim().toLowerCase()}`;
 }
 
 export async function findOrCreatePart(
@@ -48,11 +52,11 @@ export async function findOrCreatePart(
     select: { id: true },
   });
 
-  for (const alias of generateAliases(name)) {
-    await prisma.partAlias.upsert({
-      where: { partId_alias: { partId: created.id, alias } },
-      update: {},
-      create: { partId: created.id, alias, source: "auto-normalize" },
+  const aliases = generateAliases(name);
+  if (aliases.length > 0) {
+    await prisma.partAlias.createMany({
+      data: aliases.map((alias) => ({ partId: created.id, alias, source: "auto-normalize" })),
+      skipDuplicates: true,
     });
   }
 
@@ -81,49 +85,49 @@ export async function savePricedRows(
     })),
   );
 
-  let saved = 0;
-  for (const r of kept) {
-    const partId = await findOrCreatePart(prisma, r.name, r.category);
-    const sourceType = ((r as PricedImportRow).sourceType ?? fallbackSource) as SnapshotSource;
-    const sourceUrl = (r as PricedImportRow).url ?? null;
+  const idCache = new Map<string, string>();
+  const unique = new Map<string, { name: string; category: string }>();
+  for (const row of kept) unique.set(partKey(row.name, row.category), { name: row.name, category: row.category });
 
-    if (sourceType === SnapshotSource.MANUAL) {
-      await prisma.priceSnapshot.deleteMany({
-        where: { partId, sourceType: SnapshotSource.MANUAL },
-      });
-    } else if (sourceUrl) {
-      const existing = await prisma.priceSnapshot.findFirst({
-        where: { partId, sourceType, sourceUrl },
-        select: { id: true },
-      });
-      if (existing) {
-        await prisma.priceSnapshot.update({
-          where: { id: existing.id },
-          data: {
-            priceKrw: r.price,
-            condition: PartCondition.GOOD,
-            rawText: JSON.stringify({ source: sourceType, name: r.name, category: r.category }),
-          },
-        });
-        saved += 1;
-        continue;
-      }
-    }
-
-    await prisma.priceSnapshot.create({
-      data: {
-        partId,
-        sourceType,
-        sourceUrl,
-        priceKrw: r.price,
-        condition: PartCondition.GOOD,
-        rawText: JSON.stringify({ source: sourceType, name: r.name, category: r.category }),
+  const names = [...unique.values()].map((item) => item.name);
+  if (names.length > 0) {
+    const existing = await prisma.part.findMany({
+      where: {
+        OR: [{ fullName: { in: names, mode: "insensitive" } }, { modelName: { in: names, mode: "insensitive" } }],
       },
+      select: { id: true, fullName: true, modelName: true, category: true },
     });
-    saved += 1;
+    for (const part of existing) {
+      idCache.set(partKey(part.fullName, part.category), part.id);
+      idCache.set(partKey(part.modelName, part.category), part.id);
+    }
   }
 
-  return { saved, rejected };
+  for (const item of unique.values()) {
+    const key = partKey(item.name, item.category);
+    if (!idCache.has(key)) {
+      const id = await findOrCreatePart(prisma, item.name, item.category);
+      idCache.set(key, id);
+    }
+  }
+
+  const snapshotRows = kept.map((row) => {
+    const sourceType = ((row as PricedImportRow).sourceType ?? fallbackSource) as SnapshotSource;
+    return {
+      partId: idCache.get(partKey(row.name, row.category)) as string,
+      sourceType,
+      sourceUrl: (row as PricedImportRow).url ?? null,
+      priceKrw: row.price,
+      condition: PartCondition.GOOD,
+      rawText: JSON.stringify({ source: sourceType, name: row.name, category: row.category }),
+    };
+  });
+
+  if (snapshotRows.length > 0) {
+    await prisma.priceSnapshot.createMany({ data: snapshotRows });
+  }
+
+  return { saved: snapshotRows.length, rejected };
 }
 
 export async function saveManualRows(
