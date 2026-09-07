@@ -3,8 +3,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { guardAdminRequest } from "@/lib/admin-guard";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { parseManualPriceText } from "@/lib/ingest/manual-price-parser";
+import { parseManualPriceText, type ManualRow } from "@/lib/ingest/manual-price-parser";
 import { saveManualRows } from "@/lib/ingest/manual-price-writer";
+
+export const maxDuration = 60;
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +15,7 @@ export async function POST(req: Request) {
     if (guard) return guard;
 
     const ip = getClientIp(req);
-    const rate = checkRateLimit(`admin:manual-prices:${ip}`, 20, 60_000);
+    const rate = checkRateLimit(`admin:manual-prices:${ip}`, 40, 60_000);
     if (!rate.allowed) {
       return NextResponse.json(
         { ok: false, message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
@@ -20,33 +23,40 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = (await req.json()) as { text?: string; apply?: boolean };
-    const text = body.text ?? "";
-    if (!text.trim()) {
-      return NextResponse.json({ ok: false, message: "붙여넣은 내용이 없습니다." }, { status: 400 });
-    }
+    const body = (await req.json()) as {
+      text?: string;
+      apply?: boolean;
+      rows?: ManualRow[];
+    };
 
-    const { rows, bad } = parseManualPriceText(text);
+    const parsed = Array.isArray(body.rows) && body.rows.length > 0
+      ? { rows: body.rows.slice(0, 40), bad: [] as ReturnType<typeof parseManualPriceText>["bad"] }
+      : parseManualPriceText(body.text ?? "");
 
     if (!body.apply) {
       return NextResponse.json({
         ok: true,
         applied: false,
-        validCount: rows.length,
-        filteredCount: bad.length,
-        rows: rows.slice(0, 200),
-        filtered: bad.slice(0, 100),
+        validCount: parsed.rows.length,
+        filteredCount: parsed.bad.length,
+        rows: parsed.rows.slice(0, 200),
+        filtered: parsed.bad.slice(0, 100),
       });
     }
 
-    if (rows.length === 0) {
+    if (parsed.rows.length === 0) {
       return NextResponse.json(
-        { ok: false, message: `저장할 유효한 줄이 없습니다. (걸러짐 ${bad.length}건)`, filteredCount: bad.length, filtered: bad.slice(0, 100) },
+        {
+          ok: false,
+          message: `저장할 유효한 줄이 없습니다. (걸러짐 ${parsed.bad.length}건)`,
+          filteredCount: parsed.bad.length,
+          filtered: parsed.bad.slice(0, 100),
+        },
         { status: 422 },
       );
     }
 
-    const { saved, rejected } = await saveManualRows(prisma, rows);
+    const { saved, rejected } = await saveManualRows(prisma, parsed.rows);
     const extraFiltered = rejected.map((row) => ({
       line: 0,
       raw: row.name,
@@ -57,8 +67,8 @@ export async function POST(req: Request) {
       ok: true,
       applied: true,
       saved,
-      filteredCount: bad.length + rejected.length,
-      filtered: [...bad, ...extraFiltered].slice(0, 100),
+      filteredCount: parsed.bad.length + rejected.length,
+      filtered: [...parsed.bad, ...extraFiltered].slice(0, 100),
     });
   } catch (error) {
     console.error("[manual-prices]", error);
