@@ -7,6 +7,7 @@ import {
   normalizeMarketListing,
 } from "@/lib/market-listing-meta";
 import { parseMarketSourceUrl } from "@/lib/market-source";
+import { normalizeSourceUrl } from "@/lib/ingest/listing-url";
 import { prisma } from "@/lib/prisma";
 
 const LEGACY_LISTING_SELECT = {
@@ -34,7 +35,6 @@ const FULL_LISTING_SELECT = {
 export async function GET() {
   try {
     let items: Array<Record<string, unknown>>;
-
     try {
       items = await prisma.marketListing.findMany({
         where: { isActive: true },
@@ -49,7 +49,6 @@ export async function GET() {
         select: LEGACY_LISTING_SELECT,
       });
     }
-
     return NextResponse.json({
       ok: true,
       items: items.map((row) => normalizeMarketListing(row as any)),
@@ -68,7 +67,6 @@ export async function POST(req: NextRequest) {
       priceKrw?: number;
       condition?: "NEW" | "LIKE_NEW" | "GOOD" | "FAIR" | "POOR";
       location?: string | null;
-      contact?: string;
       sourceUrl?: string;
       verdict?: string | null;
       isFairVerified?: boolean;
@@ -90,6 +88,15 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    const sourceUrl = normalizeSourceUrl(parsedUrl.toString()) ?? parsedUrl.toString();
+
+    const already = await prisma.marketListing.findFirst({
+      where: { sourceUrl },
+      select: { id: true },
+    });
+    if (already) {
+      return NextResponse.json({ ok: false, message: "이미 등록된 원문 URL입니다." }, { status: 409 });
+    }
 
     const baseData = {
       title: body.title.trim(),
@@ -97,33 +104,25 @@ export async function POST(req: NextRequest) {
       priceKrw: body.priceKrw as number,
       condition: (body.condition ?? "GOOD") as Prisma.PartCondition,
       location: body.location?.trim() || null,
-      contact: parsedUrl.toString(),
+      contact: sourceUrl,
       isFairVerified: Boolean(body.isFairVerified),
       fairPriceMid: Number.isFinite(body.fairPriceMid ?? NaN) ? (body.fairPriceMid as number) : null,
       valuationRunId: body.valuationRunId ?? null,
     };
 
-    const extendedData = {
-      ...baseData,
-      sourceUrl: parsedUrl.toString(),
-      verdict: body.verdict?.trim() || null,
-    };
-
     let created: { id: string };
-
     try {
       created = await prisma.marketListing.create({
-        data: extendedData,
+        data: { ...baseData, sourceUrl, verdict: body.verdict?.trim() || null },
         select: { id: true },
       });
     } catch (error) {
       if (!isSchemaDriftError(error)) throw error;
-
       created = await prisma.marketListing.create({
         data: {
           ...baseData,
           description: embedMarketMeta(baseData.description, {
-            sourceUrl: parsedUrl.toString(),
+            sourceUrl,
             verdict: body.verdict?.trim() || null,
           }),
         },
