@@ -64,7 +64,6 @@ export default function ManualPricesPage() {
 
   useEffect(() => {
     void checkDb();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function preview() {
@@ -96,6 +95,7 @@ export default function ManualPricesPage() {
     setLoading(true);
     setMessage(null);
     let saved = 0;
+    let skipped = 0;
     try {
       for (let i = 0; i < parsed.rows.length; i += CHUNK) {
         const chunk = parsed.rows.slice(i, i + CHUNK);
@@ -107,7 +107,7 @@ export default function ManualPricesPage() {
           body: JSON.stringify({ apply: true, rows: chunk }),
         });
         const raw = await res.text();
-        let data: { ok?: boolean; saved?: number; message?: string };
+        let data: { ok?: boolean; saved?: number; skipped?: number; message?: string };
         try {
           data = JSON.parse(raw);
         } catch {
@@ -118,9 +118,10 @@ export default function ManualPricesPage() {
           setMessage(data.message ?? `저장 실패 (${i + 1}번째 묶음)`);
           return;
         }
-        saved += data.saved ?? chunk.length;
+        saved += data.saved ?? 0;
+        skipped += data.skipped ?? 0;
       }
-      setMessage(`저장 완료: ${saved}건 (걸러짐 ${parsed.bad.length}건)`);
+      setMessage(`저장 완료: ${saved}건 · 중복 URL 생략 ${skipped}건 · 걸러짐 ${parsed.bad.length}건`);
       setResult((prev) => (prev ? { ...prev, applied: true, saved } : prev));
       await checkDb();
     } catch (e) {
@@ -133,7 +134,7 @@ export default function ManualPricesPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-xl font-semibold text-zinc-900">부품 중고가 대량 입력</h1>
-      <p className="mt-1 text-sm text-zinc-600">미리보기 후 저장. 실제 DB 값은 아래 확인 칸에 뜨니다.</p>
+      <p className="mt-1 text-sm text-zinc-600">같은 원문 URL은 다시 안 넣습니다.</p>
 
       <textarea
         className="mt-4 h-64 w-full rounded-lg border border-zinc-300 p-3 font-mono text-sm outline-none focus:border-zinc-500"
@@ -186,30 +187,6 @@ export default function ManualPricesPage() {
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
-
-      {result?.rows && result.rows.length > 0 ? (
-        <div className="mt-4 overflow-x-auto">
-          <p className="mb-1 text-sm font-medium text-zinc-700">{result.applied ? "저장 요청된" : "저장 예정"} 부품</p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500">
-                <th className="py-1 pr-4">부품명</th>
-                <th className="py-1 pr-4">카테고리</th>
-                <th className="py-1">중고가</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.rows.map((r) => (
-                <tr key={`${r.line}-${r.name}-${r.price}`} className="border-b border-zinc-100">
-                  <td className="py-1 pr-4">{r.name}</td>
-                  <td className="py-1 pr-4 text-zinc-600">{r.category}</td>
-                  <td className="py-1 font-medium">{krw(r.price)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       ) : null}
     </main>
