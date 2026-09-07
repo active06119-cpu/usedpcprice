@@ -9,16 +9,16 @@ export const dynamic = "force-dynamic";
 const CONDITION_KO: Record<string, string> = {
   NEW: "새상품",
   LIKE_NEW: "개봉만",
-  GOOD: "사용감적음",
-  FAIR: "사용감있음",
+  GOOD: "사용감 적음",
+  FAIR: "사용감 있음",
   POOR: "불량",
 };
 
 const VERDICT_KO: Record<string, string> = {
-  CHEAP: "저렴해요",
-  FAIR: "적정가",
-  OVERPRICED: "약간비쌈",
-  WAY_OVERPRICED: "많이비쌈",
+  CHEAP: "저렴",
+  FAIR: "적정",
+  OVERPRICED: "약간 비쌈",
+  WAY_OVERPRICED: "많이 비쌈",
 };
 
 const VERDICT_STYLE: Record<string, string> = {
@@ -37,7 +37,7 @@ function relTime(date: Date) {
   return `${Math.floor(h / 24)}일 전`;
 }
 
-const krw = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
+const krw = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 
 type Props = { searchParams?: Promise<{ q?: string }> };
 
@@ -70,78 +70,87 @@ export default async function MarketPage({ searchParams }: Props) {
   const listings = rows.map((r) => normalizeMarketListing(r));
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-4 py-10">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900">장터</h1>
-        <p className="mt-2 text-zinc-600">
-          시세를 보고 올려 둔 매물 목록입니다. 거래는 원문 칃은·번개 페이지에서 합니다.
-        </p>
+    <main className="mx-auto max-w-3xl py-8">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">장터</h1>
+          <p className="mt-1 text-sm text-zinc-600">시세가 붙은 원문 매물입니다. 거래는 당근·번개에서 하세요.</p>
+        </div>
+        <Link
+          href="/market/new"
+          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
+        >
+          원문 올리기
+        </Link>
       </div>
 
-      <form className="mb-6 flex items-center gap-2">
+      <form className="mb-5 flex gap-2">
         <input
           name="q"
           defaultValue={q}
-          placeholder="부품·모델명 검색 (예: 4070, 라이젠)"
-          className="flex-1 rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          placeholder="4070, 라이젠, 980..."
+          className="flex-1 rounded-full border border-zinc-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
-        <button type="submit" className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white">
+        <button type="submit" className="rounded-full border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-700">
           검색
         </button>
       </form>
 
       {listings.length === 0 ? (
-        <p className="rounded-2xl border border-zinc-200 bg-white px-4 py-16 text-center text-sm text-zinc-500">
-          아직 등록된 매물이 없어요.
-        </p>
+        <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-14 text-center">
+          <p className="text-sm font-medium text-zinc-800">아직 올라온 글이 없습니다</p>
+          <p className="mt-1 text-sm text-zinc-500">당근이나 번개 링크를 올리면 시세와 함께 여기에 보입니다.</p>
+          <Link href="/market/new" className="mt-4 inline-flex rounded-full bg-zinc-900 px-4 py-2 text-sm text-white">
+            첫 매물 올리기
+          </Link>
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {listings.map((item) => (
-            <article key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="line-clamp-2 text-sm font-semibold text-zinc-900">{item.title}</h2>
-                {item.isFairVerified ? (
-                  <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                    적정가
-                  </span>
-                ) : item.verdict && VERDICT_KO[item.verdict] ? (
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${VERDICT_STYLE[item.verdict] ?? ""}`}>
-                    {VERDICT_KO[item.verdict]}
-                  </span>
+          {listings.map((item) => {
+            const body = (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="line-clamp-2 text-sm font-semibold text-zinc-900">{item.title}</h2>
+                  {item.isFairVerified ? (
+                    <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                      적정
+                    </span>
+                  ) : item.verdict && VERDICT_KO[item.verdict] ? (
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${VERDICT_STYLE[item.verdict] ?? ""}`}>
+                      {VERDICT_KO[item.verdict]}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-lg font-semibold text-zinc-900">{krw(item.priceKrw)}</p>
+                {item.fairPriceMid ? (
+                  <p className="text-xs text-zinc-500">시세 {krw(item.fairPriceMid)}</p>
                 ) : null}
-              </div>
+                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
+                  <span>{sourceLabel(item.sourceUrl)}</span>
+                  <span>{item.location ?? "지역 미상"}</span>
+                  <span>{relTime(item.createdAt)}</span>
+                </div>
+              </>
+            );
 
-              <p className="mt-2 text-xl font-bold text-zinc-900">{krw(item.priceKrw)}</p>
-              {item.fairPriceMid ? (
-                <p className="text-xs text-zinc-500">적정가 <span className="font-medium text-emerald-700">{krw(item.fairPriceMid)}</span></p>
-              ) : null}
-
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-                <span>{CONDITION_KO[item.condition] ?? item.condition}</span>
-                <span>{item.location ?? "지역미상"}</span>
-                <span>{relTime(item.createdAt)}</span>
-              </div>
-
-              {item.sourceUrl ? (
-                <a
-                  href={item.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white"
-                >
-                  {sourceLabel(item.sourceUrl)} 원문 보기
-                </a>
-              ) : null}
-            </article>
-          ))}
+            return item.sourceUrl ? (
+              <a
+                key={item.id}
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-2xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300 hover:shadow-sm"
+              >
+                {body}
+              </a>
+            ) : (
+              <article key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4">
+                {body}
+              </article>
+            );
+          })}
         </div>
       )}
-
-      <div className="mt-8 text-center">
-        <Link href="/market/new" className="text-sm text-zinc-500 underline hover:text-zinc-800">
-          원문 매물 올리기
-        </Link>
-      </div>
     </main>
   );
 }
