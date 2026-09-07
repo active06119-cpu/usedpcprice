@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { parseManualPriceText } from "@/lib/ingest/manual-price-parser";
 
 type FilteredRow = { line: number; raw: string; reason: string };
 type PreviewRow = { name: string; category: string; price: number; line: number };
+type DbRow = { id: string; name: string; category: string; price: number; savedAt: string };
 
 type ViewState = {
   applied: boolean;
@@ -17,13 +18,54 @@ type ViewState = {
 };
 
 const CHUNK = 20;
+const krw = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
 
 export default function ManualPricesPage() {
   const adminToken = process.env.NEXT_PUBLIC_ADMIN_API_TOKEN ?? "";
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<ViewState | null>(null);
+  const [todayCount, setTodayCount] = useState<number | null>(null);
+  const [totalManual, setTotalManual] = useState<number | null>(null);
+  const [dbRows, setDbRows] = useState<DbRow[]>([]);
+  const [checkError, setCheckError] = useState<string | null>(null);
+
+  async function checkDb() {
+    setChecking(true);
+    setCheckError(null);
+    try {
+      const res = await fetch("/api/admin/manual-prices", {
+        headers: { "x-admin-token": adminToken },
+        credentials: "include",
+      });
+      const raw = await res.text();
+      const data = JSON.parse(raw) as {
+        ok?: boolean;
+        todayCount?: number;
+        totalManual?: number;
+        recent?: DbRow[];
+        message?: string;
+      };
+      if (!res.ok || !data.ok) {
+        setCheckError(data.message ?? "DB 확인 실패");
+        return;
+      }
+      setTodayCount(data.todayCount ?? 0);
+      setTotalManual(data.totalManual ?? 0);
+      setDbRows(data.recent ?? []);
+    } catch (e) {
+      setCheckError(e instanceof Error ? e.message : "DB 확인 중 오류");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  useEffect(() => {
+    void checkDb();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function preview() {
     const parsed = parseManualPriceText(text);
@@ -80,6 +122,7 @@ export default function ManualPricesPage() {
       }
       setMessage(`저장 완료: ${saved}건 (걸러짐 ${parsed.bad.length}건)`);
       setResult((prev) => (prev ? { ...prev, applied: true, saved } : prev));
+      await checkDb();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "저장 중 오류가 발생했습니다.");
     } finally {
@@ -87,12 +130,48 @@ export default function ManualPricesPage() {
     }
   }
 
-  const krw = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
-
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-xl font-semibold text-zinc-900">부품 중고가 대량 입력</h1>
       <p className="mt-1 text-sm text-zinc-600">미리보기는 바로, 저장은 20건씩 나눠 보냅니다.</p>
+
+      <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium text-zinc-800">DB 확인</p>
+            <p className="text-xs text-zinc-500">지금 price_snapshots에 듣인 MANUAL 시세입니다.</p>
+          </div>
+          <button
+            type="button"
+            onClick={checkDb}
+            disabled={checking}
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 disabled:opacity-50"
+          >
+            {checking ? "확인 중..." : "다시 확인"}
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+          <span className="rounded-lg bg-zinc-50 px-3 py-1.5">오늘 {todayCount ?? "—"}건</span>
+          <span className="rounded-lg bg-zinc-50 px-3 py-1.5">전체 MANUAL {totalManual ?? "—"}건</span>
+        </div>
+        {checkError ? <p className="mt-2 text-xs text-red-600">{checkError}</p> : null}
+        {dbRows.length === 0 && !checking && !checkError ? (
+          <p className="mt-3 text-xs text-zinc-500">아직 저장된 MANUAL 시세가 없습니다.</p>
+        ) : (
+          <ul className="mt-3 space-y-1 text-xs text-zinc-700">
+            {dbRows.map((row) => (
+              <li key={row.id} className="flex flex-wrap justify-between gap-2 border-b border-zinc-100 py-1">
+                <span>
+                  {row.name} <span className="text-zinc-400">{row.category}</span>
+                </span>
+                <span className="tabular-nums">
+                  {krw(row.price)} · {new Date(row.savedAt).toLocaleString("ko-KR")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <textarea
         className="mt-4 h-72 w-full rounded-lg border border-zinc-300 p-3 font-mono text-sm outline-none focus:border-zinc-500"
@@ -127,7 +206,7 @@ export default function ManualPricesPage() {
 
       {result?.rows && result.rows.length > 0 ? (
         <div className="mt-4 overflow-x-auto">
-          <p className="mb-1 text-sm font-medium text-zinc-700">{result.applied ? "저장된" : "저장 예정"} 부품</p>
+          <p className="mb-1 text-sm font-medium text-zinc-700">{result.applied ? "저장 요청된" : "저장 예정"} 부품</p>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500">
