@@ -8,6 +8,7 @@ import { basisLabel } from "./pricing/layered";
 import { canonicalPartName } from "./pricing/canonical-name";
 import { estimateUsedBand } from "./pricing/estimate-band";
 import { findPartId, resolvePartUsedBand } from "./pricing/resolve-part";
+import { listingCacheId, writeCachedValuation } from "./valuation-cache";
 
 export const MISC_ALLOWANCE = 50_000;
 const MINOR_CATEGORIES = new Set(["CASE", "COOLER", "MONITOR", "OTHER"]);
@@ -51,6 +52,7 @@ export type ValuationResult = {
   misc: Array<{ name: string; category: string }>;
   verdict: string | null;
   verdictKo: string;
+  cached?: boolean;
 };
 
 async function decompose(input: { text?: string; image?: ImageInput }): Promise<{
@@ -173,7 +175,12 @@ async function saveRecord(
 
 export async function valuatePc(
   prisma: PrismaClient,
-  input: { text?: string; image?: ImageInput; askingPriceKrw?: number | null },
+  input: {
+    text?: string;
+    image?: ImageInput;
+    askingPriceKrw?: number | null;
+    cacheId?: string;
+  },
 ): Promise<ValuationResult> {
   const { components, totalPriceKrw } = await decompose({ text: input.text, image: input.image });
   if (components.length === 0) throw new Error("부품 구성을 찾지 못했습니다.");
@@ -237,6 +244,11 @@ export async function valuatePc(
     verdict: v?.code ?? null,
     verdictKo: v?.ko ?? "가격 정보 없음",
   };
+
+  const cacheId =
+    input.cacheId ??
+    listingCacheId(input.image ? input.image.base64.slice(0, 4000) : input.text ?? "", Boolean(input.image));
+  await writeCachedValuation(prisma, cacheId, result);
 
   try {
     await saveRecord(prisma, {
