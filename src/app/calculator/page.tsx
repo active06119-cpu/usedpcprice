@@ -12,6 +12,7 @@ type Unpriced = {
 };
 type Result = {
   ok: boolean;
+  cached?: boolean;
   askingPriceKrw?: number | null;
   fairMid?: number;
   fairLow?: number;
@@ -136,6 +137,9 @@ export default function CalculatorPage() {
               <span className={`inline-flex rounded-full border px-4 py-1.5 text-base font-bold ${verdictStyle[result.verdict] ?? ""}`}>
                 {result.verdictKo}
               </span>
+            ) : null}
+            {result.cached ? (
+              <p className="text-[11px] text-zinc-400">같은 글의 저장 결과를 다시 쓰셨습니다.</p>
             ) : null}
             <div className="mt-1 flex items-end gap-6">
               <div>
