@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full">
-      <body className="flex min-h-full flex-col overflow-x-hidden bg-[#f3f4f6] text-zinc-900">
+      <body className="flex min-h-full flex-col overflow-x-hidden text-stone-900">
         <SiteHeader />
         <div className="flex-1">
           <PublicShell>{children}</PublicShell>
