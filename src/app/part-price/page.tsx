@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 
+import { JobProgress } from "@/components/common/JobProgress";
+import { useJobProgress } from "@/hooks/useJobProgress";
+import { formatKrw } from "@/lib/format";
+
 type Result = {
   ok: boolean;
   found?: boolean;
@@ -15,14 +19,12 @@ type Result = {
   message?: string;
 };
 
-const krw = (n: number | null | undefined) =>
-  typeof n === "number" ? `₩${n.toLocaleString("ko-KR")}` : "—";
-
 export default function PartPricePage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const { pct, label } = useJobProgress(loading);
 
   async function search() {
     if (!name.trim()) return;
@@ -58,8 +60,9 @@ export default function PartPricePage() {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && search()}
+          onKeyDown={(e) => e.key === "Enter" && !loading && search()}
           placeholder="예: RTX 4070, i5-13600K"
+          disabled={loading}
           className="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2.5 text-base outline-none focus:border-[#1e3a5f] focus:bg-white sm:flex-1 sm:text-sm"
         />
         <button
@@ -68,9 +71,15 @@ export default function PartPricePage() {
           disabled={loading || !name.trim()}
           className="w-full rounded-lg bg-[#1e3a5f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#16304f] disabled:opacity-50 sm:w-auto"
         >
-          {loading ? "조회 중..." : "시세 조회"}
+          {loading ? "조회 중" : "시세 조회"}
         </button>
       </div>
+
+      {loading ? (
+        <div className="mt-4">
+          <JobProgress pct={pct} label={label || "시세 찾는 중"} />
+        </div>
+      ) : null}
 
       {message ? (
         <p className="mt-4 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700">{message}</p>
@@ -79,8 +88,8 @@ export default function PartPricePage() {
       {result?.ok && result.found ? (
         <div className="mt-5 rounded-xl border border-stone-200 bg-white p-5 shadow-[0_8px_24px_rgba(28,25,23,0.05)] sm:mt-6">
           <div className="text-sm text-stone-500">{result.name} <span className="text-stone-400">({result.category})</span></div>
-          <div className="mt-2 text-2xl font-bold text-[#1e3a5f] sm:text-3xl">{krw(result.usedMid)}</div>
-          <div className="mt-1 text-sm text-stone-500">{krw(result.usedLow)} ~ {krw(result.usedHigh)}</div>
+          <div className="mt-2 text-2xl font-bold text-[#1e3a5f] sm:text-3xl">{formatKrw(result.usedMid)}</div>
+          <div className="mt-1 text-sm text-stone-500">{formatKrw(result.usedLow)} ~ {formatKrw(result.usedHigh)}</div>
           <div className="mt-3 inline-flex rounded-md bg-stone-100 px-3 py-1 text-xs text-stone-500">{result.basis}</div>
         </div>
       ) : result?.ok && result.found === false ? (
