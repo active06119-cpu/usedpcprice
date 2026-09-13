@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="mx-auto max-w-2xl py-8 sm:py-12">
-      <h1 className="text-[1.75rem] font-bold leading-snug tracking-tight text-zinc-900 sm:text-[2rem]">
+    <main className="mx-auto w-full max-w-2xl py-6 sm:py-12">
+      <h1 className="text-2xl font-bold leading-snug tracking-tight text-zinc-900 sm:text-[2rem]">
         중고컴퓨터 시세
       </h1>
       <p className="mt-3 max-w-lg text-[15px] leading-6 text-zinc-600">
@@ -11,7 +11,7 @@ export default function Home() {
         여기서 거래하지는 않습니다.
       </p>
 
-      <div className="mt-7 space-y-2">
+      <div className="mt-6 space-y-2 sm:mt-7">
         <Link
           href="/calculator"
           className="block bg-zinc-900 px-4 py-3 text-center text-sm font-medium text-white hover:bg-zinc-800"
@@ -34,18 +34,18 @@ export default function Home() {
         </div>
       </div>
 
-      <dl className="mt-10 divide-y divide-zinc-200 border-y border-zinc-200 text-[13px]">
-        <div className="flex items-baseline justify-between gap-6 py-3">
+      <dl className="mt-8 divide-y divide-zinc-200 border-y border-zinc-200 text-[13px] sm:mt-10">
+        <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
           <dt className="shrink-0 text-zinc-500">완본체</dt>
-          <dd className="text-right text-zinc-800">CPU·GPU는 실매물, 파워·보드·케이스는 구간가</dd>
+          <dd className="text-zinc-800 sm:text-right">CPU·GPU는 실매물, 파워·보드·케이스는 구간가</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-6 py-3">
+        <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
           <dt className="shrink-0 text-zinc-500">단품</dt>
-          <dd className="text-right text-zinc-800">그래픽카드, CPU, 램, SSD 하나의 중고가</dd>
+          <dd className="text-zinc-800 sm:text-right">그래픽카드, CPU, 램, SSD 하나의 중고가</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-6 py-3">
+        <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
           <dt className="shrink-0 text-zinc-500">장터</dt>
-          <dd className="text-right text-zinc-800">원문 링크만 모읍니다. 거래는 당근·번개에서</dd>
+          <dd className="text-zinc-800 sm:text-right">원문 링크만 모읍니다. 거래는 당근·번개에서</dd>
         </div>
       </dl>
     </main>
