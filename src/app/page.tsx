@@ -3,9 +3,8 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main className="mx-auto max-w-2xl py-8 sm:py-12">
-      <p className="text-[13px] text-zinc-500">당근 · 번개 매물 기준</p>
-      <h1 className="mt-1 text-[1.75rem] font-bold leading-snug tracking-tight text-zinc-900 sm:text-[2rem]">
-        이 가격이면 사도 되나
+      <h1 className="text-[1.75rem] font-bold leading-snug tracking-tight text-zinc-900 sm:text-[2rem]">
+        중고컴퓨터 시세
       </h1>
       <p className="mt-3 max-w-lg text-[15px] leading-6 text-zinc-600">
         매물 글을 그대로 붙여넣으면 부품별로 나눠서 시세를 더합니다.
