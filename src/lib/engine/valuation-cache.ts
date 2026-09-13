@@ -4,6 +4,7 @@ import type { PrismaClient } from "@prisma/client";
 import type { ValuationResult } from "./pc-valuation";
 
 export const VALUATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_VERSION = "v2";
 
 export function normalizeListingText(text: string): string {
   return text
@@ -14,7 +15,7 @@ export function normalizeListingText(text: string): string {
 }
 
 export function listingCacheId(text: string, hasImage = false): string {
-  const raw = `${hasImage ? "img:" : "txt:"}${normalizeListingText(text)}`;
+  const raw = `${CACHE_VERSION}:${hasImage ? "img:" : "txt:"}${normalizeListingText(text)}`;
   return createHash("sha256").update(raw).digest("hex").slice(0, 40);
 }
 
