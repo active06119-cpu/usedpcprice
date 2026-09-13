@@ -1,8 +1,8 @@
-/** 시세 샘플이 없을 때 화면용 참고 밴드. 적정가 합산에는 넣지 않는다. */
+/** 시세 샘플이 없을 때 쓰는 중고 고정 밴드. 램/SSD/보드/파워/케이스는 적정가 합산에 넣는다. */
 
 export type EstimateBand = { low: number; mid: number; high: number };
 
-function band(mid: number, spread = 0.22): EstimateBand {
+function band(mid: number, spread = 0.2): EstimateBand {
   return {
     low: Math.round(mid * (1 - spread)),
     mid: Math.round(mid),
@@ -42,26 +42,43 @@ export function estimateUsedBand(name: string, category: string): EstimateBand |
   }
 
   if (category === "MOTHERBOARD") {
-    if (/z890|x870|x670/.test(n)) return band(280_000);
-    if (/z790|b860|b650/.test(n)) return band(180_000);
-    if (/b760|b550|b850/.test(n)) return band(110_000);
-    if (/b450|h610|a320/.test(n)) return band(70_000);
-    return band(120_000);
+    if (/z890|x870/.test(n)) return band(220_000);
+    if (/x670|z790/.test(n)) return band(140_000);
+    if (/b860/.test(n)) return band(90_000);
+    if (/b650/.test(n)) return band(80_000);
+    if (/b850/.test(n)) return band(85_000);
+    if (/b760/.test(n)) return band(70_000);
+    if (/b550/.test(n)) return band(60_000);
+    if (/b450|h610|a320|a520/.test(n)) return band(45_000);
+    return band(70_000);
   }
 
   if (category === "PSU") {
     const watt = n.match(/(\d{3,4})\s*w/);
-    const w = watt ? Number(watt[1]) : 0;
-    if (w >= 1000) return band(160_000);
-    if (w >= 850) return band(110_000);
-    if (w >= 750) return band(80_000);
-    if (w >= 650) return band(60_000);
-    return band(45_000);
+    const w = watt ? Number(watt[1]) : /1000|1200/.test(n) ? 1000 : /850/.test(n) ? 850 : /750/.test(n) ? 750 : /650/.test(n) ? 650 : 0;
+    if (w >= 1000) return band(90_000);
+    if (w >= 850) return band(70_000);
+    if (w >= 750) return band(50_000);
+    if (w >= 650) return band(40_000);
+    return band(35_000);
+  }
+
+  if (category === "CASE") {
+    if (/distro|monoblock|수냉 일체|우수금/.test(n)) return band(250_000);
+    if (
+      /lian\s*li|o11|lancool|hyte|y60|y70|어항|fish\s*tank|fishtank|distro\s*plate|evolv|torrent/.test(n)
+    ) {
+      return band(180_000);
+    }
+    if (/nzxt\s*h|h5\s*flow|h7\s*flow|darkflash|다크플래시|abko|앱코|4000d|5000d/.test(n)) {
+      return band(80_000);
+    }
+    return band(50_000);
   }
 
   if (category === "CPU") {
     if (/14600|14700|14900|7800x3d|9800x3d/.test(n)) return band(280_000);
-    if (/13600|14600|7500|7600|9600/.test(n)) return band(180_000);
+    if (/13600|7500|7600|9600/.test(n)) return band(180_000);
     return null;
   }
 
@@ -81,3 +98,5 @@ export function estimateUsedBand(name: string, category: string): EstimateBand |
 
   return null;
 }
+
+export const FIXED_FILL_CATEGORIES = new Set(["RAM", "SSD", "HDD", "MOTHERBOARD", "PSU", "CASE"]);
