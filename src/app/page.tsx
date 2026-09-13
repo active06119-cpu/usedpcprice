@@ -1,70 +1,54 @@
 import Link from "next/link";
 
-const CARDS = [
-  {
-    href: "/calculator",
-    kicker: "완본체",
-    title: "PC 계산기",
-    desc: "사양과 호가를 넣으면 부품 시세를 합쳐 싼지 비싼지 알려줍니다.",
-    cta: "시세 확인",
-  },
-  {
-    href: "/part-price",
-    kicker: "단품",
-    title: "부품 계산기",
-    desc: "그래픽카드, CPU, 램, SSD 하나의 중고가를 바로 봅니다.",
-    cta: "부품 조회",
-  },
-  {
-    href: "/market",
-    kicker: "장터",
-    title: "원문 매물",
-    desc: "시세가 붙은 당근·번개 글을 모아 둡니다. 거래는 원문에서 합니다.",
-    cta: "매물 보기",
-  },
-] as const;
-
 export default function Home() {
   return (
-    <main className="mx-auto max-w-3xl py-10 sm:py-14">
-      <section>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
-          중고 PC, 사기 전에 시세부터
-        </h1>
-        <p className="mt-3 max-w-xl text-[15px] leading-7 text-zinc-600">
-          매물 글을 붙여넣으면 부품을 분해하고 단품 시세로 호가를 비교합니다.
-          장터는 원문 링크만 모읍니다.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-2">
+    <main className="mx-auto max-w-2xl py-8 sm:py-12">
+      <p className="text-[13px] text-zinc-500">당근 · 번개 매물 기준</p>
+      <h1 className="mt-1 text-[1.75rem] font-bold leading-snug tracking-tight text-zinc-900 sm:text-[2rem]">
+        이 가격이면 사도 되나
+      </h1>
+      <p className="mt-3 max-w-lg text-[15px] leading-6 text-zinc-600">
+        매물 글을 그대로 붙여넣으면 부품별로 나눠서 시세를 더합니다.
+        여기서 거래하지는 않습니다.
+      </p>
+
+      <div className="mt-7 space-y-2">
+        <Link
+          href="/calculator"
+          className="block bg-zinc-900 px-4 py-3 text-center text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          완본체 글 붙여넣기
+        </Link>
+        <div className="grid grid-cols-2 gap-2">
           <Link
-            href="/calculator"
-            className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
+            href="/part-price"
+            className="border border-zinc-300 bg-white px-3 py-2.5 text-center text-sm text-zinc-800 hover:bg-zinc-50"
           >
-            PC 시세 확인
+            단품 시세
           </Link>
           <Link
             href="/market"
-            className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700"
+            className="border border-zinc-300 bg-white px-3 py-2.5 text-center text-sm text-zinc-800 hover:bg-zinc-50"
           >
-            장터 둘러보기
+            장터 글
           </Link>
         </div>
-      </section>
+      </div>
 
-      <section className="mt-10 grid gap-3 sm:grid-cols-3">
-        {CARDS.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="rounded-2xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300 hover:shadow-sm"
-          >
-            <p className="text-xs font-medium text-zinc-400">{card.kicker}</p>
-            <h2 className="mt-1 text-base font-semibold text-zinc-900">{card.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-600">{card.desc}</p>
-            <p className="mt-3 text-sm font-medium text-emerald-700">{card.cta} →</p>
-          </Link>
-        ))}
-      </section>
+      <dl className="mt-10 divide-y divide-zinc-200 border-y border-zinc-200 text-[13px]">
+        <div className="flex items-baseline justify-between gap-6 py-3">
+          <dt className="shrink-0 text-zinc-500">완본체</dt>
+          <dd className="text-right text-zinc-800">CPU·GPU는 실매물, 파워·보드·케이스는 구간가</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-6 py-3">
+          <dt className="shrink-0 text-zinc-500">단품</dt>
+          <dd className="text-right text-zinc-800">그래픽카드, CPU, 램, SSD 하나의 중고가</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-6 py-3">
+          <dt className="shrink-0 text-zinc-500">장터</dt>
+          <dd className="text-right text-zinc-800">원문 링크만 모읍니다. 거래는 당근·번개에서</dd>
+        </div>
+      </dl>
     </main>
   );
 }
