@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+
+import { JobProgress } from "@/components/common/JobProgress";
+import { useJobProgress } from "@/hooks/useJobProgress";
+import { digitsOnly, formatKrw } from "@/lib/format";
 
 type Priced = { name: string; category: string; mid: number; basis: string; sampleSize?: number };
 type Unpriced = {
@@ -20,14 +24,10 @@ type Result = {
   miscAllowance?: number;
   priced?: Priced[];
   unpriced?: Unpriced[];
-  misc?: Array<{ name: string; category: string }>;
   verdict?: string | null;
   verdictKo?: string;
   message?: string;
 };
-
-const krw = (n: number | null | undefined) =>
-  typeof n === "number" ? `₩${n.toLocaleString("ko-KR")}` : "—";
 
 const verdictStyle: Record<string, string> = {
   CHEAP: "bg-blue-50 text-blue-800 border-blue-200",
@@ -51,12 +51,15 @@ export default function CalculatorPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const { pct, label } = useJobProgress(loading);
 
   function readFile(file: File) {
     const reader = new FileReader();
     reader.onload = () => setImage(typeof reader.result === "string" ? reader.result : null);
     reader.readAsDataURL(file);
   }
+
   function onPaste(e: React.ClipboardEvent) {
     const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
     const file = item?.getAsFile();
@@ -64,6 +67,9 @@ export default function CalculatorPage() {
   }
 
   async function check() {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setMessage(null);
     setResult(null);
@@ -71,10 +77,11 @@ export default function CalculatorPage() {
       const res = await fetch("/api/valuation/pc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           text: text.trim() || undefined,
           image: image ?? undefined,
-          askingPriceKrw: asking ? Number(asking.replace(/[^0-9]/g, "")) : undefined,
+          askingPriceKrw: asking ? Number(digitsOnly(asking)) : undefined,
         }),
       });
       const data = (await res.json()) as Result;
@@ -84,6 +91,7 @@ export default function CalculatorPage() {
       }
       setResult(data);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setMessage(e instanceof Error ? e.message : "오류가 발생했습니다.");
     } finally {
       setLoading(false);
@@ -91,6 +99,7 @@ export default function CalculatorPage() {
   }
 
   const hasCase = result?.priced?.some((p) => p.category === "CASE") ?? false;
+  const canSubmit = !loading && Boolean(text.trim() || image);
 
   return (
     <main className="mx-auto w-full max-w-2xl py-6 sm:py-10">
@@ -103,10 +112,11 @@ export default function CalculatorPage() {
           <label className="text-sm font-medium text-stone-700">PC 사양</label>
           <textarea
             className="mt-1 h-28 w-full rounded-lg border border-stone-300 bg-stone-50 p-3 text-base outline-none focus:border-[#1e3a5f] focus:bg-white sm:text-sm"
-            placeholder={"매물 사양을 붙여넣으세요."}
+            placeholder="매물 사양을 붙여넣으세요."
             value={text}
             onChange={(e) => setText(e.target.value)}
             onPaste={onPaste}
+            disabled={loading}
           />
           <label className="mt-3 flex h-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-stone-300 bg-stone-50 text-xs text-stone-500 sm:h-24">
             {image ? (
@@ -115,7 +125,7 @@ export default function CalculatorPage() {
             ) : (
               <span>캡처 붙여넣기 또는 선택</span>
             )}
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && readFile(e.target.files[0])} />
+            <input type="file" accept="image/*" className="hidden" disabled={loading} onChange={(e) => e.target.files?.[0] && readFile(e.target.files[0])} />
           </label>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
@@ -123,14 +133,21 @@ export default function CalculatorPage() {
               onChange={(e) => setAsking(e.target.value)}
               inputMode="numeric"
               placeholder="판매자 요구가 (원)"
+              disabled={loading}
               className="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2.5 text-base outline-none focus:border-[#1e3a5f] focus:bg-white sm:flex-1 sm:text-sm"
             />
-            <button type="button" onClick={check} disabled={loading || (!text.trim() && !image)} className="w-full rounded-lg bg-[#1e3a5f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#16304f] disabled:opacity-50 sm:w-auto">
-              {loading ? "확인 중..." : "시세 확인"}
+            <button type="button" onClick={check} disabled={!canSubmit} className="w-full rounded-lg bg-[#1e3a5f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#16304f] disabled:opacity-50 sm:w-auto">
+              {loading ? "계산 중" : "시세 확인"}
             </button>
           </div>
         </div>
       </div>
+
+      {loading ? (
+        <div className="mt-4">
+          <JobProgress pct={pct} label={label} />
+        </div>
+      ) : null}
 
       {message ? <p className="mt-4 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700">{message}</p> : null}
 
@@ -148,14 +165,14 @@ export default function CalculatorPage() {
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <div className="text-xs text-stone-500">적정가</div>
-                <div className="text-xl font-bold text-[#1e3a5f] sm:text-2xl">{krw(result.fairMid)}</div>
+                <div className="text-xl font-bold text-[#1e3a5f] sm:text-2xl">{formatKrw(result.fairMid)}</div>
               </div>
               <div>
                 <div className="text-xs text-stone-500">요구가</div>
-                <div className="text-xl font-bold text-[#c2410c] sm:text-2xl">{krw(result.askingPriceKrw)}</div>
+                <div className="text-xl font-bold text-[#c2410c] sm:text-2xl">{formatKrw(result.askingPriceKrw)}</div>
               </div>
             </div>
-            <div className="mt-2 text-xs text-stone-400">범위 {krw(result.fairLow)} ~ {krw(result.fairHigh)}</div>
+            <div className="mt-2 text-xs text-stone-400">범위 {formatKrw(result.fairLow)} ~ {formatKrw(result.fairHigh)}</div>
           </div>
 
           <div className="overflow-x-auto px-4 sm:px-5">
@@ -167,12 +184,12 @@ export default function CalculatorPage() {
                       <div className="break-keep text-stone-800">{p.name}</div>
                       <div className="text-[11px] text-stone-400">{sampleLabel(p)}{p.basis && p.basis !== "고정가" ? ` · ${p.basis}` : ""}</div>
                     </td>
-                    <td className="py-2.5 text-right font-medium whitespace-nowrap text-stone-900">{krw(p.mid)}</td>
+                    <td className="py-2.5 text-right font-medium whitespace-nowrap text-stone-900">{formatKrw(p.mid)}</td>
                   </tr>
                 ))}
                 <tr className="text-stone-500">
                   <td className="py-2.5 pr-3">{hasCase ? "쿨러·기타 잔부품" : "케이스·쿨러 등"}</td>
-                  <td className="py-2.5 text-right whitespace-nowrap">{krw(result.miscAllowance)}</td>
+                  <td className="py-2.5 text-right whitespace-nowrap">{formatKrw(result.miscAllowance)}</td>
                 </tr>
               </tbody>
             </table>
@@ -186,7 +203,7 @@ export default function CalculatorPage() {
                   <li key={u.name} className="flex justify-between gap-3">
                     <span className="min-w-0 break-keep">{u.name}</span>
                     <span className="shrink-0 tabular-nums">
-                      {u.estimateMid ? `참고 ${krw(u.estimateLow)} ~ ${krw(u.estimateHigh)}` : "참고가 없음"}
+                      {u.estimateMid ? `참고 ${formatKrw(u.estimateLow)} ~ ${formatKrw(u.estimateHigh)}` : "참고가 없음"}
                     </span>
                   </li>
                 ))}
