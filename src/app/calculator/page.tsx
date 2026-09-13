@@ -36,8 +36,9 @@ const verdictStyle: Record<string, string> = {
   WAY_OVERPRICED: "bg-red-50 text-red-700 border-red-200",
 };
 
-function sampleLabel(n: number | undefined) {
-  const count = n ?? 0;
+function sampleLabel(p: Priced) {
+  if (p.basis === "고정가") return "고정가";
+  const count = p.sampleSize ?? 0;
   if (count <= 0) return "실매물 0건 · 참고용";
   if (count < 5) return `실매물 ${count}건 · 참고용`;
   return `실매물 ${count}건`;
@@ -88,6 +89,8 @@ export default function CalculatorPage() {
       setLoading(false);
     }
   }
+
+  const hasCase = result?.priced?.some((p) => p.category === "CASE") ?? false;
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-4 py-10">
@@ -161,13 +164,13 @@ export default function CalculatorPage() {
                 <tr key={`${p.name}-${i}`} className="border-b border-zinc-50">
                   <td className="py-2">
                     <div>{p.name}</div>
-                    <div className="text-[11px] text-zinc-400">{sampleLabel(p.sampleSize)}{p.basis ? ` · ${p.basis}` : ""}</div>
+                    <div className="text-[11px] text-zinc-400">{sampleLabel(p)}{p.basis && p.basis !== "고정가" ? ` · ${p.basis}` : ""}</div>
                   </td>
                   <td className="py-2 text-right font-medium">{krw(p.mid)}</td>
                 </tr>
               ))}
               <tr className="border-b border-zinc-50 text-zinc-500">
-                <td className="py-1.5">케이스·쿨러 등 잔부품 (정액)</td>
+                <td className="py-1.5">{hasCase ? "쿨러·기타 잔부품 (정액)" : "케이스·쿨러 등 잔부품 (정액)"}</td>
                 <td className="py-1.5 text-right">{krw(result.miscAllowance)}</td>
               </tr>
             </tbody>
@@ -175,7 +178,7 @@ export default function CalculatorPage() {
 
           {result.unpriced && result.unpriced.length > 0 ? (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs font-medium text-amber-800">시세 샘플이 없어 합산에서 빼 부품</p>
+              <p className="text-xs font-medium text-amber-800">시세가 없어 합산에서 빼 부품</p>
               <ul className="mt-2 space-y-1 text-xs text-amber-900">
                 {result.unpriced.map((u) => (
                   <li key={u.name} className="flex justify-between gap-3">
@@ -188,7 +191,7 @@ export default function CalculatorPage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[11px] text-amber-700">이 참고 밴드는 적정가 합에 넣지 않았습니다.</p>
+              <p className="mt-2 text-[11px] text-amber-700">GPU·CPU는 실매물이 없으면 합에 넣지 않습니다.</p>
             </div>
           ) : null}
 
