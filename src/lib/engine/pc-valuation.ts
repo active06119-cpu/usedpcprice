@@ -6,17 +6,19 @@ import { ListingInputType, ParseStatus, ValuationType } from "@prisma/client";
 
 import { basisLabel } from "./pricing/layered";
 import { canonicalPartName } from "./pricing/canonical-name";
-import { estimateUsedBand } from "./pricing/estimate-band";
+import { estimateUsedBand, FIXED_FILL_CATEGORIES } from "./pricing/estimate-band";
 import { findPartId, resolvePartUsedBand } from "./pricing/resolve-part";
 import { listingCacheId, writeCachedValuation } from "./valuation-cache";
 
 export const MISC_ALLOWANCE = 50_000;
-const MINOR_CATEGORIES = new Set(["CASE", "COOLER", "MONITOR", "OTHER"]);
+export const MISC_ALLOWANCE_WITH_CASE = 25_000;
+const MINOR_CATEGORIES = new Set(["COOLER", "MONITOR", "OTHER"]);
 
 const DECOMPOSE_SYSTEM = `너는 중고 조립PC 매물에서 부품 구성을 뿐아내는 분석기다.
 매물 텍스트/이미지에서 들어있는 PC 부품을 추출해 extract_components 도구로 보고한다.
 - 각 부품: category, name(영문 표준 모델명, 예: "RTX 4060 Ti", "Ryzen 5 7500F", "Samsung DDR5 16GB")
-- 그래픽카드/CPU/램/SSD/메인보드/파워 위주로. 케이스·쿨러는 모델명 알면 넣되 모르면 생략.
+- 그래픽카드/CPU/램/SSD/메인보드/파워/케이스 위주로. 쿨러는 모델명 알면 넣되 모르면 생략.
+- 케이스는 모델이 보이면 CASE로 반드시 넣는다. 리안리, HYTE, O11, 어항은 그대로 이름을 남긴다.
 - 전체 판매가가 보이면 totalPriceKrw 에 숫자로.`;
 
 export type Component = { category: string; name: string };
@@ -25,7 +27,7 @@ export type ImageInput = { mediaType: string; base64: string };
 export type PricedItem = {
   name: string;
   category: string;
-  partId: string;
+  partId?: string;
   mid: number;
   low: number;
   high: number;
@@ -134,6 +136,23 @@ function verdict(asking: number, fairMid: number): { code: string; ko: string } 
   return { code: "WAY_OVERPRICED", ko: "많이 비쌈 ⚠️" };
 }
 
+function pushFixed(
+  priced: PricedItem[],
+  item: { name: string; category: string; partId?: string | null },
+  estimate: { low: number; mid: number; high: number },
+) {
+  priced.push({
+    name: item.name,
+    category: item.category,
+    partId: item.partId ?? undefined,
+    mid: estimate.mid,
+    low: estimate.low,
+    high: estimate.high,
+    basis: "고정가",
+    sampleSize: 0,
+  });
+}
+
 async function saveRecord(
   prisma: PrismaClient,
   rec: { rawText: string; result: ValuationResult },
@@ -158,6 +177,7 @@ async function saveRecord(
     },
   });
   for (const p of rec.result.priced) {
+    if (!p.partId) continue;
     await prisma.valuationItem.create({
       data: {
         valuationRunId: run.id,
@@ -215,19 +235,27 @@ export async function valuatePc(
         basis: basisLabel(band),
         sampleSize: band.listingSampleSize,
       });
-    } else {
-      const estimate = estimateUsedBand(c.name, c.category) ?? estimateUsedBand(canonical, c.category);
-      unpriced.push({
-        name: c.name,
-        category: c.category,
-        estimateLow: estimate?.low ?? null,
-        estimateMid: estimate?.mid ?? null,
-        estimateHigh: estimate?.high ?? null,
-      });
+      continue;
     }
+
+    const estimate = estimateUsedBand(c.name, c.category) ?? estimateUsedBand(canonical, c.category);
+    if (FIXED_FILL_CATEGORIES.has(c.category) && estimate) {
+      pushFixed(priced, { name: c.name, category: c.category, partId }, estimate);
+      continue;
+    }
+
+    unpriced.push({
+      name: c.name,
+      category: c.category,
+      estimateLow: estimate?.low ?? null,
+      estimateMid: estimate?.mid ?? null,
+      estimateHigh: estimate?.high ?? null,
+    });
   }
 
-  const fairMid = priced.reduce((s, p) => s + p.mid, 0) + MISC_ALLOWANCE;
+  const hasPricedCase = priced.some((p) => p.category === "CASE");
+  const miscAllowance = hasPricedCase ? MISC_ALLOWANCE_WITH_CASE : MISC_ALLOWANCE;
+  const fairMid = priced.reduce((s, p) => s + p.mid, 0) + miscAllowance;
   const fairLow = Math.round(fairMid * 0.9);
   const fairHigh = Math.round(fairMid * 1.1);
   const v = asking && fairMid > 0 ? verdict(asking, fairMid) : null;
@@ -237,7 +265,7 @@ export async function valuatePc(
     fairMid,
     fairLow,
     fairHigh,
-    miscAllowance: MISC_ALLOWANCE,
+    miscAllowance,
     priced,
     unpriced,
     misc,
