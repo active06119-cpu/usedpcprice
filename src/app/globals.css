@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f4f6;
-  --foreground: #18181b;
-  --muted: #ececef;
-  --border: #e4e4e7;
+  --background: #f3f1ec;
+  --foreground: #1c1917;
+  --ink: #1e3a5f;
+  --accent: #c2410c;
 }
 
 @theme inline {
@@ -13,7 +13,9 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1200px 400px at 10% -10%, #fff7ed 0%, transparent 55%),
+    var(--background);
   color: var(--foreground);
   font-family:
     "Apple SD Gothic Neo",
