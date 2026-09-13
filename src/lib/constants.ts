@@ -1,7 +1,7 @@
-export const APP_TITLE = "중고컴퓨터 시세계산기";
+export const APP_TITLE = "PC시세";
 
 export const NAV_ITEMS = [
-  { href: "/calculator", label: "PC 계산기" },
-  { href: "/part-price", label: "부품 계산기" },
+  { href: "/calculator", label: "완본체" },
+  { href: "/part-price", label: "단품" },
   { href: "/market", label: "장터" },
 ] as const;
