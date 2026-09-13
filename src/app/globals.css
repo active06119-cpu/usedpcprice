@@ -1,21 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafafa;
+  --background: #f3f4f6;
   --foreground: #18181b;
-  --muted: #f4f4f5;
+  --muted: #ececef;
   --border: #e4e4e7;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family:
+    "Apple SD Gothic Neo",
+    Pretendard,
+    "Noto Sans KR",
+    "Malgun Gothic",
+    sans-serif;
 }
