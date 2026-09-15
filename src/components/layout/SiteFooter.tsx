@@ -7,7 +7,7 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-auto border-t border-stone-200 bg-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-5 text-[12px] text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-5 text-[13px] text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p>
           <span className="font-medium text-stone-700">PC시세</span>
           <span className="mx-2 text-stone-300">|</span>
