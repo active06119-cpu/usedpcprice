@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 function SideRail() {
-  return <aside className="hidden w-[160px] shrink-0 xl:block" />;
+  return <aside className="hidden w-[160px] shrink-0 2xl:block" />;
 }
 
 export function PublicShell({ children }: { children: ReactNode }) {
@@ -14,7 +14,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
   if (hideRails) return <>{children}</>;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] items-start justify-center gap-4 px-3 py-4 sm:gap-5 sm:px-6 sm:py-6">
+    <div className="mx-auto flex w-full max-w-[1440px] items-start justify-center gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <SideRail />
       <div className="min-w-0 flex-1">{children}</div>
       <SideRail />
