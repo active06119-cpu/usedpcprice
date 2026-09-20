@@ -26,6 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         cached: true,
+        shareId: cacheId,
         ...applyAskingPrice(cached, body.askingPriceKrw),
       });
     }
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
       askingPriceKrw: body.askingPriceKrw,
       cacheId,
     });
-    return NextResponse.json({ ok: true, cached: false, ...result });
+    return NextResponse.json({ ok: true, cached: false, shareId: cacheId, ...result });
   } catch (error) {
     console.error("[public pc-valuation]", error);
     return NextResponse.json(
