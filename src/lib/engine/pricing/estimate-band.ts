@@ -1,4 +1,4 @@
-/** 시세 샘플이 없을 때 쓰는 중고 고정 밴드. 램/SSD/보드/파워/케이스는 적정가 합산에 넣는다. */
+/** 시세 샘플이 없을 때 쓰는 중고 고정 밴드. 램/SSD/보드/파워/케이스/CPU는 적정가 합산에 넣는다. */
 
 export type EstimateBand = { low: number; mid: number; high: number };
 
@@ -15,11 +15,13 @@ export function estimateUsedBand(name: string, category: string): EstimateBand |
 
   if (category === "RAM") {
     const gb = n.match(/(\d+)\s*(?:gb|g)\b/);
-    const size = gb ? Number(gb[1]) : /32/.test(n) ? 32 : /16/.test(n) ? 16 : /8/.test(n) ? 8 : 0;
+    const size = gb ? Number(gb[1]) : /64/.test(n) ? 64 : /32/.test(n) ? 32 : /16/.test(n) ? 16 : /8/.test(n) ? 8 : 0;
     const ddr5 = /ddr5/.test(n);
+    if (ddr5 && size >= 64) return band(280_000);
     if (ddr5 && size >= 32) return band(140_000);
     if (ddr5 && size >= 16) return band(70_000);
     if (ddr5) return band(45_000);
+    if (size >= 64) return band(140_000);
     if (size >= 32) return band(90_000);
     if (size >= 16) return band(45_000);
     if (size >= 8) return band(25_000);
@@ -77,9 +79,17 @@ export function estimateUsedBand(name: string, category: string): EstimateBand |
   }
 
   if (category === "CPU") {
-    if (/14600|14700|14900|7800x3d|9800x3d/.test(n)) return band(280_000);
-    if (/13600|7500|7600|9600/.test(n)) return band(180_000);
-    return null;
+    if (/9800x3d|7800x3d|9950|9900/.test(n)) return band(420_000);
+    if (/14900|13900/.test(n)) return band(320_000);
+    if (/14700|13700/.test(n)) return band(220_000);
+    if (/14600|13600/.test(n)) return band(190_000);
+    if (/12700|13500|13400/.test(n)) return band(140_000);
+    if (/12400|12600/.test(n)) return band(100_000);
+    if (/5700x3d|5800x3d/.test(n)) return band(220_000);
+    if (/7700|7600|7500|9600/.test(n)) return band(170_000);
+    if (/5700|5600/.test(n)) return band(90_000);
+    if (/12400|12100|5500|4500/.test(n)) return band(70_000);
+    return band(120_000);
   }
 
   if (category === "GPU") {
@@ -93,10 +103,13 @@ export function estimateUsedBand(name: string, category: string): EstimateBand |
     if (/4070/.test(n)) return band(550_000);
     if (/4060\s*ti/.test(n)) return band(380_000);
     if (/4060/.test(n)) return band(300_000);
+    if (/3080|3090/.test(n)) return band(350_000);
+    if (/3070/.test(n)) return band(250_000);
+    if (/3060/.test(n)) return band(180_000);
     return null;
   }
 
   return null;
 }
 
-export const FIXED_FILL_CATEGORIES = new Set(["RAM", "SSD", "HDD", "MOTHERBOARD", "PSU", "CASE"]);
+export const FIXED_FILL_CATEGORIES = new Set(["RAM", "SSD", "HDD", "MOTHERBOARD", "PSU", "CASE", "CPU"]);
