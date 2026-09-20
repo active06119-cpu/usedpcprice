@@ -5,7 +5,7 @@ import type { ValuationResult } from "./pc-valuation";
 import { verdictFromAsking } from "./verdict";
 
 export const VALUATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 
 export function normalizeListingText(text: string): string {
   return text
