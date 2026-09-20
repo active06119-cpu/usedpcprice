@@ -9,12 +9,13 @@ import { canonicalPartName } from "./pricing/canonical-name";
 import { estimateUsedBand, FIXED_FILL_CATEGORIES } from "./pricing/estimate-band";
 import { findPartId, resolvePartUsedBand } from "./pricing/resolve-part";
 import { listingCacheId, writeCachedValuation } from "./valuation-cache";
+import { verdictFromAsking } from "./verdict";
 
 export const MISC_ALLOWANCE = 50_000;
 export const MISC_ALLOWANCE_WITH_CASE = 25_000;
 const MINOR_CATEGORIES = new Set(["COOLER", "MONITOR", "OTHER"]);
 
-const DECOMPOSE_SYSTEM = `너는 중고 조립PC 매물에서 부품 구성을 뿐아내는 분석기다.
+const DECOMPOSE_SYSTEM = `너는 중고 조립PC 매물에서 부품 구성을 뿔아내는 분석기다.
 매물 텍스트/이미지에서 들어있는 PC 부품을 추출해 extract_components 도구로 보고한다.
 - 각 부품: category, name(영문 표준 모델명, 예: "RTX 4060 Ti", "Ryzen 5 7500F", "Samsung DDR5 16GB")
 - 그래픽카드/CPU/램/SSD/메인보드/파워/케이스 위주로. 쿨러는 모델명 알면 넣되 모르면 생략.
@@ -126,14 +127,6 @@ async function decompose(input: { text?: string; image?: ImageInput }): Promise<
     components: Array.isArray(tool?.input?.components) ? tool!.input!.components! : [],
     totalPriceKrw: typeof tool?.input?.totalPriceKrw === "number" ? tool!.input!.totalPriceKrw! : null,
   };
-}
-
-function verdict(asking: number, fairMid: number): { code: string; ko: string } {
-  const ratio = asking / fairMid;
-  if (ratio <= 0.85) return { code: "CHEAP", ko: "싸다 퇴" };
-  if (ratio <= 1.05) return { code: "FAIR", ko: "적정가" };
-  if (ratio <= 1.25) return { code: "OVERPRICED", ko: "약간 비쌈" };
-  return { code: "WAY_OVERPRICED", ko: "많이 비쌈 ⚠️" };
 }
 
 function pushFixed(
@@ -258,7 +251,7 @@ export async function valuatePc(
   const fairMid = priced.reduce((s, p) => s + p.mid, 0) + miscAllowance;
   const fairLow = Math.round(fairMid * 0.9);
   const fairHigh = Math.round(fairMid * 1.1);
-  const v = asking && fairMid > 0 ? verdict(asking, fairMid) : null;
+  const v = asking && fairMid > 0 ? verdictFromAsking(asking, fairMid) : null;
 
   const result: ValuationResult = {
     askingPriceKrw: asking ?? null,
