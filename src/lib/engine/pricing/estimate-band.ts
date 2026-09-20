@@ -1,4 +1,4 @@
-/** 시세 샘플이 없을 때 쓰는 중고 고정 밴드. 램/SSD/보드/파워/케이스/CPU는 적정가 합산에 넣는다. */
+/** 시세 샘플이 없을 때 쓰는 중고 고정 밴드. 주요 부품은 합산에서 빼지 않는다. */
 
 export type EstimateBand = { low: number; mid: number; high: number };
 
@@ -88,7 +88,7 @@ export function estimateUsedBand(name: string, category: string): EstimateBand |
     if (/5700x3d|5800x3d/.test(n)) return band(220_000);
     if (/7700|7600|7500|9600/.test(n)) return band(170_000);
     if (/5700|5600/.test(n)) return band(90_000);
-    if (/12400|12100|5500|4500/.test(n)) return band(70_000);
+    if (/12100|5500|4500/.test(n)) return band(70_000);
     return band(120_000);
   }
 
@@ -106,10 +106,19 @@ export function estimateUsedBand(name: string, category: string): EstimateBand |
     if (/3080|3090/.test(n)) return band(350_000);
     if (/3070/.test(n)) return band(250_000);
     if (/3060/.test(n)) return band(180_000);
-    return null;
+    return band(250_000);
   }
 
   return null;
 }
 
-export const FIXED_FILL_CATEGORIES = new Set(["RAM", "SSD", "HDD", "MOTHERBOARD", "PSU", "CASE", "CPU"]);
+export const FIXED_FILL_CATEGORIES = new Set([
+  "RAM",
+  "SSD",
+  "HDD",
+  "MOTHERBOARD",
+  "PSU",
+  "CASE",
+  "CPU",
+  "GPU",
+]);
