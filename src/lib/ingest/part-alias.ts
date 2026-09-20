@@ -1,11 +1,5 @@
 /**
  * 부품명 → 별칭(정규화 키) 여러 개 생성.
- *
- * 표기가 달라도("RTX 4060 Ti" / "4060ti" / "4060 Ti" / "지포스 4060ti") 같은 부품으로
- * 매칭되게, 각 부품에 가능한 정규화 표기를 별칭으로 붙여둔다.
- * 핵심 식별자 = 모델번호+접미사(4060ti, 13600k, 5600x). 브랜드·접두어·용량·띄어쓰기는 노이즈.
- *
- * 주의: 4060 과 4060 Ti 는 접미사 join 덤분에 "4060" / "4060ti" 로 분리돼 충돌하지 않는다.
  */
 const MODEL_SUFFIX = "ti|super|xtx|xt|x3d|ks|kf|k|f|x|s";
 
@@ -47,6 +41,11 @@ export function generateAliases(name: string): string[] {
     if (shortSuper) out.add(`${shortSuper[1]}super`);
     const longSuper = alias.match(/^(\d{3,5})super$/);
     if (longSuper) out.add(`${longSuper[1]}s`);
+    const intelSuffix = alias.match(/^(\d{4,5})(kf|ks|k|f)$/);
+    if (intelSuffix) {
+      out.add(intelSuffix[1]);
+      if (intelSuffix[2] === "kf" || intelSuffix[2] === "ks") out.add(`${intelSuffix[1]}k`);
+    }
   }
 
   return [...out].filter((a) => a.length >= 3);
