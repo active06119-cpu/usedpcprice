@@ -1,5 +1,7 @@
 // 분석 파이프라인 공통 유틸.
 
+import { VERDICT_KO } from "@/lib/engine/verdict";
+
 import type { AnalyzedPart, AnalyzeResult } from "./types";
 
 export function buildMissingPartsWarnings(extractedParts: { category: string }[]): {
@@ -103,20 +105,18 @@ export function isSanePriceForCategory(priceKrw: number, category: string): bool
   return priceKrw >= min && priceKrw <= max;
 }
 
-// ── 시세 소스 분리 쿼리 ───────────────────────────────────
-
 export function priceSourceLabelFor(source: AnalyzedPart["priceSource"]): string {
   switch (source) {
     case "db":
-      return "DB (실거래)";
+      return "실거래";
     case "formula":
       return "신품가 기반 추정";
     case "ai":
-      return "AI 추정";
+      return "추정가";
     case "new":
       return "신품가";
     case "validated":
-      return "AI 검증 보정";
+      return "보정가";
   }
 }
 
@@ -139,7 +139,6 @@ export function attachPriceSource<T extends Omit<AnalyzedPart, "priceSourceLabel
   return { ...part, priceSource: source, priceSourceLabel: priceSourceLabelFor(source) };
 }
 
-
 export const ANALYSIS_MODE_LABEL: Record<AnalyzeResult["analysisMode"], string> = {
   used: "중고 시세 기준",
   new: "신품가 기준",
@@ -155,43 +154,40 @@ export function buildVerdict(
   if (!asking || totalFairMid <= 0) {
     return {
       verdict: "NO_PRICE",
-      verdictKo: "가격 정보 없음",
-      verdictReason: "판매자 요청가가 없어 비교할 수 없습니다.",
+      verdictKo: VERDICT_KO.NO_PRICE,
+      verdictReason: "판매자 요구가가 없어 비교할 수 없습니다.",
     };
   }
 
   const ratio = asking / totalFairMid;
+  const midLabel = `₩${totalFairMid.toLocaleString("ko-KR")}`;
   if (ratio <= 0.85) {
     return {
       verdict: "CHEAP",
-      verdictKo: "👍 저렴해요",
-      verdictReason: `${priceLabel}(₩${totalFairMid.toLocaleString()})보다 ${Math.round((1 - ratio) * 100)}% 저렴합니다.`,
+      verdictKo: VERDICT_KO.CHEAP,
+      verdictReason: `${priceLabel}(${midLabel})보다 ${Math.round((1 - ratio) * 100)}% 낮습니다.`,
     };
   }
   if (ratio <= 1.15) {
     return {
       verdict: "FAIR",
-      verdictKo: "✅ 적정가",
-      verdictReason:
-        analysisMode === "new"
-          ? `신품 최저가(₩${totalFairMid.toLocaleString()})와 거의 동일합니다.`
-          : `시세(₩${totalFairMid.toLocaleString()})와 거의 동일합니다.`,
+      verdictKo: VERDICT_KO.FAIR,
+      verdictReason: `${priceLabel}(${midLabel})와 비슷합니다.`,
     };
   }
   if (ratio <= 1.35) {
     return {
       verdict: "OVERPRICED",
-      verdictKo: "⚠️ 약간 비쌈 (네고 여지 있음)",
-      verdictReason: `${priceLabel}보다 ${Math.round((ratio - 1) * 100)}% 높습니다. 흥정 여지 있음.`,
+      verdictKo: VERDICT_KO.OVERPRICED,
+      verdictReason: `${priceLabel}보다 ${Math.round((ratio - 1) * 100)}% 높습니다.`,
     };
   }
   return {
     verdict: "WAY_OVERPRICED",
-    verdictKo: "❌ 많이 비쌈",
-    verdictReason: `${priceLabel}(₩${totalFairMid.toLocaleString()})보다 ${Math.round((ratio - 1) * 100)}% 높습니다.`,
+    verdictKo: VERDICT_KO.WAY_OVERPRICED,
+    verdictReason: `${priceLabel}(${midLabel})보다 ${Math.round((ratio - 1) * 100)}% 높습니다.`,
   };
 }
-
 
 export function summarizeTotals(parts: AnalyzedPart[]) {
   const validParts = parts.filter((part) => part.usedMid);
