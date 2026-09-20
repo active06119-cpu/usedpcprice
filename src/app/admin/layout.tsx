@@ -6,6 +6,7 @@ import { LogoutButton } from "@/components/admin/LogoutButton";
 const NAV = [
   { href: "/admin", label: "시세 관리" },
   { href: "/admin/manual-prices", label: "단품 시세" },
+  { href: "/admin/coverage", label: "부족 부품" },
   { href: "/admin/bulk-import", label: "대량 등록" },
   { href: "/admin/market", label: "마켓 관리" },
 ] as const;
