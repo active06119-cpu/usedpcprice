@@ -4,6 +4,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { ListingInputType, ParseStatus, ValuationType } from "@prisma/client";
 
+import { blendThinSample } from "./pricing/blend-thin";
 import { basisLabel } from "./pricing/layered";
 import { canonicalPartName } from "./pricing/canonical-name";
 import { estimateUsedBand, FIXED_FILL_CATEGORIES } from "./pricing/estimate-band";
@@ -213,25 +214,26 @@ export async function valuatePc(
       continue;
     }
     const canonical = canonicalPartName(c.name, c.category);
+    const estimate = estimateUsedBand(c.name, c.category) ?? estimateUsedBand(canonical, c.category);
     const partId =
       (await findPartId(prisma, c.name, c.category, { loose: true })) ??
       (canonical !== c.name ? await findPartId(prisma, canonical, c.category, { loose: true }) : null);
     const band = partId ? await resolvePartUsedBand(prisma, partId, c.category) : null;
     if (partId && band) {
+      const blended = blendThinSample(band.usedMid, band.listingSampleSize, estimate);
       priced.push({
         name: c.name,
         category: c.category,
         partId,
-        mid: band.usedMid,
-        low: band.usedLow,
-        high: band.usedHigh,
-        basis: basisLabel(band),
+        mid: blended.mid,
+        low: blended.low,
+        high: blended.high,
+        basis: blended.blended ? `${basisLabel(band)} · 시세밴드 보정` : basisLabel(band),
         sampleSize: band.listingSampleSize,
       });
       continue;
     }
 
-    const estimate = estimateUsedBand(c.name, c.category) ?? estimateUsedBand(canonical, c.category);
     if (FIXED_FILL_CATEGORIES.has(c.category) && estimate) {
       pushFixed(priced, { name: c.name, category: c.category, partId }, estimate);
       continue;
