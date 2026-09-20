@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "PC시세 - 중고컴퓨터 시세",
-  description: "당근·번개 매물 글을 붙여넣어 중고 PC 적정가를 보십니다.",
+  description: "당근·번개 매물 글을 붙여넣어 중고 PC 적정가를 봅니다.",
 };
 
 export const viewport: Viewport = {
