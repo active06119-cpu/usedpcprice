@@ -2,9 +2,10 @@ import { createHash } from "crypto";
 import type { PrismaClient } from "@prisma/client";
 
 import type { ValuationResult } from "./pc-valuation";
+import { verdictFromAsking } from "./verdict";
 
 export const VALUATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 
 export function normalizeListingText(text: string): string {
   return text
@@ -32,12 +33,7 @@ export function applyAskingPrice(result: ValuationResult, asking: number | null 
   if (!askingPriceKrw || fairMid <= 0) {
     return { ...result, askingPriceKrw: askingPriceKrw ?? null, verdict: null, verdictKo: "가격 정보 없음" };
   }
-  const ratio = askingPriceKrw / fairMid;
-  const verdict =
-    ratio <= 0.85 ? { code: "CHEAP", ko: "싸다 퇴" }
-    : ratio <= 1.05 ? { code: "FAIR", ko: "적정가" }
-    : ratio <= 1.25 ? { code: "OVERPRICED", ko: "약간 비쌈" }
-    : { code: "WAY_OVERPRICED", ko: "많이 비쌈 ⚠️" };
+  const verdict = verdictFromAsking(askingPriceKrw, fairMid);
   return {
     ...result,
     askingPriceKrw,
