@@ -1,5 +1,5 @@
 /**
- * 조립PC 호구 판정 코어.
+ * 조립PC 시세 핵.
  */
 import type { PrismaClient } from "@prisma/client";
 import { ListingInputType, ParseStatus, ValuationType } from "@prisma/client";
@@ -214,8 +214,8 @@ export async function valuatePc(
     }
     const canonical = canonicalPartName(c.name, c.category);
     const partId =
-      (await findPartId(prisma, c.name, c.category, { loose: false })) ??
-      (canonical !== c.name ? await findPartId(prisma, canonical, c.category, { loose: false }) : null);
+      (await findPartId(prisma, c.name, c.category, { loose: true })) ??
+      (canonical !== c.name ? await findPartId(prisma, canonical, c.category, { loose: true }) : null);
     const band = partId ? await resolvePartUsedBand(prisma, partId, c.category) : null;
     if (partId && band) {
       priced.push({
