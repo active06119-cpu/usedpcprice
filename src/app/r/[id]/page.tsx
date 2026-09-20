@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { VERDICT_KO } from "@/lib/engine/verdict";
 import { formatKrw } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -39,6 +40,7 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
   const low = result.fairLow ?? result.totalFairLow ?? null;
   const high = result.fairHigh ?? result.totalFairHigh ?? null;
   const asking = result.askingPriceKrw ?? result.askingPrice ?? null;
+  const label = (result.verdict && VERDICT_KO[result.verdict]) || result.verdictKo || "";
   const rows =
     result.priced?.map((p) => ({ name: p.name, mid: p.mid, note: p.basis })) ??
     result.parts?.map((p) => ({ name: p.partName, mid: p.usedMid ?? 0, note: "" })) ??
@@ -48,15 +50,13 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
     <main className="mx-auto w-full max-w-2xl py-8 sm:py-12">
       <p className="text-sm font-medium text-[#c2410c]">공유된 시세</p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-stone-900">중고컴퓨터 시세</h1>
-      <p className="mt-2 text-sm text-stone-500">
-        {saved.createdAt.toLocaleString("ko-KR")}
-      </p>
+      <p className="mt-2 text-sm text-stone-500">{saved.createdAt.toLocaleString("ko-KR")}</p>
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_12px_32px_rgba(28,25,23,0.06)]">
         <div className="border-b border-stone-100 p-5">
           {result.verdict ? (
             <span className={`inline-flex rounded-md border px-3 py-1 text-sm font-bold ${verdictStyle[result.verdict] ?? "bg-stone-100 text-stone-700 border-stone-200"}`}>
-              {result.verdictKo ?? result.verdict}
+              {label}
             </span>
           ) : null}
           <div className="mt-4 grid grid-cols-2 gap-4">
