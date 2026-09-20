@@ -17,6 +17,7 @@ type Unpriced = {
 type Result = {
   ok: boolean;
   cached?: boolean;
+  shareId?: string;
   askingPriceKrw?: number | null;
   fairMid?: number;
   fairLow?: number;
@@ -51,6 +52,7 @@ export function CalculatorPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const { pct, label } = useJobProgress(loading);
 
@@ -73,6 +75,7 @@ export function CalculatorPanel() {
     setLoading(true);
     setMessage(null);
     setResult(null);
+    setCopied(false);
     try {
       const res = await fetch("/api/valuation/pc", {
         method: "POST",
@@ -96,6 +99,13 @@ export function CalculatorPanel() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyShare() {
+    if (!result?.shareId) return;
+    const url = `${window.location.origin}/r/${result.shareId}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
   }
 
   const hasCase = result?.priced?.some((p) => p.category === "CASE") ?? false;
@@ -208,6 +218,13 @@ export function CalculatorPanel() {
               </ul>
             </div>
           ) : <div className="h-4" />}
+          {result.shareId ? (
+            <div className="px-4 pb-3 sm:px-5">
+              <button type="button" onClick={copyShare} className="w-full rounded-lg border border-stone-200 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                {copied ? "링크 복사됨" : "결과 링크 복사"}
+              </button>
+            </div>
+          ) : null}
           <p className="px-4 pb-4 text-center text-xs text-stone-400 sm:px-5">추정 시세이며 실제 거래가와 다를 수 있습니다.</p>
         </div>
       ) : null}
