@@ -2,7 +2,7 @@
  * 손수 입력 부품 중고가 파서.
  */
 import { shouldPersistUsedPrice } from "../engine/pricing/guards";
-import { extractSourceUrl } from "./listing-url";
+import { extractSourceUrl, isUrlOnlyLine } from "./listing-url";
 import { isValidPartName } from "./used-listing-guard";
 
 export const MANUAL_CATEGORIES = [
@@ -74,16 +74,18 @@ function inferCategory(title: string): string | null {
 function normalizePartName(title: string, category: string): string {
   const cleaned = title
     .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/(?:www\.)?(?:daangn\.com|karrotmarket\.com|bunjang\.co\.kr)\S*/gi, " ")
     .replace(/(\d[\d,]*)\s*만\s*원/g, " ")
     .replace(/(\d{1,3}(?:,\d{3})+|\d{4,})\s*원/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
   if (category === "GPU") {
-    const gpu = cleaned.match(/\b(rtx|gtx|rx)\s*(\d{3,4})\s*(ti|super)?/i);
+    const gpu = cleaned.match(/\b(rtx|gtx|rx)\s*(\d{3,4})\s*(ti)?\s*(super)?/i);
     if (gpu) {
-      const suffix = gpu[3] ? ` ${gpu[3].toUpperCase().replace("TI", "Ti")}` : "";
-      return `${gpu[1].toUpperCase()} ${gpu[2]}${suffix}`;
+      const ti = gpu[3] ? " Ti" : "";
+      const superSuffix = gpu[4] ? " SUPER" : "";
+      return `${gpu[1].toUpperCase()} ${gpu[2]}${ti}${superSuffix}`;
     }
   }
   if (category === "CPU") {
@@ -125,7 +127,11 @@ function normalizePartName(title: string, category: string): string {
 
 function parseFreeformLine(trimmed: string): { name: string; category: string; price: number; url: string | null } | { reason: string } {
   const url = extractSourceUrl(trimmed);
-  const withoutUrl = trimmed.replace(/https?:\/\/\S+/gi, " ").replace(/\s+/g, " ").trim();
+  const withoutUrl = trimmed
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/(?:www\.)?(?:daangn\.com|karrotmarket\.com|bunjang\.co\.kr)\S*/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const price = extractPriceKrw(withoutUrl);
   if (price === null) return { reason: "가격 없음" };
   const title = withoutUrl
@@ -144,7 +150,7 @@ function parseTabularLine(trimmed: string): { name: string; category: string; pr
   const url = extractSourceUrl(trimmed);
   const cells = (trimmed.includes("\t") ? trimmed.split("\t") : trimmed.split(","))
     .map((c) => c.trim())
-    .filter((c) => !/^https?:\/\//i.test(c));
+    .filter((c) => !/^https?:\/\//i.test(c) && !isUrlOnlyLine(c));
   if (cells.length < 3) return { reason: "열이 3개 미만 (부품명/카테고리/가격)" };
 
   const priceStr = cells[cells.length - 1].replace(/[^0-9]/g, "");
@@ -169,13 +175,15 @@ function coalescePasteLines(lines: string[]): string[] {
     const trimmed = raw.replace(/^[\-\*•]\s*/, "").trim();
     if (!trimmed || trimmed === "---") continue;
 
-    if (buf.includes("http") && URL_FRAGMENT.test(trimmed) && !/^https?:/i.test(trimmed) && !PRICE_ONLY.test(trimmed)) {
-      buf += trimmed;
+    if (isUrlOnlyLine(trimmed)) {
+      const href = /^https?:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+      const specific = extractSourceUrl(href);
+      if (buf && specific) buf = `${buf} ${specific}`;
+      if (buf && extractPriceKrw(buf)) flush();
       continue;
     }
-    if (/^https?:\/\//i.test(trimmed)) {
-      buf = buf ? `${buf} ${trimmed}` : trimmed;
-      if (extractPriceKrw(buf)) flush();
+    if (buf.includes("http") && URL_FRAGMENT.test(trimmed) && !/^https?:/i.test(trimmed) && !PRICE_ONLY.test(trimmed)) {
+      buf += trimmed;
       continue;
     }
     if (PRICE_ONLY.test(trimmed) && buf) {
@@ -205,6 +213,7 @@ export function parseManualPriceText(text: string): {
   lines.forEach((trimmed, idx) => {
     const line = idx + 1;
     if (/name/i.test(trimmed) && /price/i.test(trimmed)) return;
+    if (isUrlOnlyLine(trimmed)) return;
 
     const looksFreeform =
       !trimmed.includes("\t") && /(\d[\d,]*)\s*만\s*원|(\d{1,3}(?:,\d{3})+|\d{4,})\s*원/.test(trimmed);
