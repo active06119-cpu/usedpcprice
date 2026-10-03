@@ -1,7 +1,29 @@
+const LISTING_HOST = /(?:www\.)?(?:daangn\.com|karrotmarket\.com|bunjang\.co\.kr)/i;
+
 export function extractSourceUrl(text: string): string | null {
-  const match = text.match(/https?:\/\/[^\s]+/i);
-  if (!match) return null;
-  return normalizeSourceUrl(match[0]);
+  const https = text.match(/https?:\/\/[^\s]+/i);
+  const bare = text.match(new RegExp(`${LISTING_HOST.source}\/[^\s]+`, "i"));
+  const raw = https?.[0] ?? (bare ? `https://${bare[0]}` : null);
+  if (!raw) return null;
+  const normalized = normalizeSourceUrl(raw);
+  if (!normalized || isGenericMarketplaceUrl(normalized)) return null;
+  return normalized;
+}
+
+export function isUrlOnlyLine(line: string): boolean {
+  return /^(?:https?:\/\/)?(?:www\.)?(?:daangn\.com|karrotmarket\.com|bunjang\.co\.kr)(?:\/\S*)?$/i.test(line.trim());
+}
+
+export function isGenericMarketplaceUrl(raw: string): boolean {
+  try {
+    const url = new URL(/^https?:/i.test(raw) ? raw : `https://${raw}`);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (!/^(daangn\.com|karrotmarket\.com|bunjang\.co\.kr)$/.test(host)) return false;
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    return path === "/" || path === "/buy-sell" || path === "/kr" || path === "/kr/buy-sell" || path === "/products";
+  } catch {
+    return false;
+  }
 }
 
 export function normalizeSourceUrl(raw: string): string | null {
