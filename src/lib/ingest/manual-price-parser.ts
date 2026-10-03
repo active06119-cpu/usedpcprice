@@ -36,6 +36,7 @@ const CHIPSET =
 
 const PRICE_ONLY = /^(\d[\d,]*)\s*만\s*원$|^(\d{1,3}(?:,\d{3})+|\d{4,})\s*원$/;
 const URL_FRAGMENT = /^[A-Za-z0-9%_\-./?=&#]+$/;
+const STORAGE_CAPACITY = /(\d+(?:\.\d+)?)\s*tb\b|(\d{2,4})\s*(?:gb|g)\b/i;
 
 function normalizeCategory(raw: string): string | null {
   const up = raw.toUpperCase();
@@ -59,15 +60,21 @@ function extractPriceKrw(text: string): number | null {
   return null;
 }
 
+function looksLikeStorage(title: string): boolean {
+  if (/(hdd|하드|모니터|갤럭시\s*(북|s|z|탭)|아이폰|맥북|usb|외장하드)/i.test(title)) return false;
+  return STORAGE_CAPACITY.test(title);
+}
+
 function inferCategory(title: string): string | null {
   const t = title.toLowerCase();
   if (/(rtx|gtx|\brx\s*\d|라데온|그래픽|지포스)/.test(t)) return "GPU";
   if (/(ddr[345]|램|메모리)/.test(t)) return "RAM";
-  if (/(ssd|nvme)/.test(t) || SSD_MODEL.test(t)) return "SSD";
+  if (/(ssd|nvme|에스에스디)/.test(t) || SSD_MODEL.test(t)) return "SSD";
   if (/(라이젠|ryzen|\bi[3579]\s*-?\d|\bcpu\b|씨피유)/.test(t)) return "CPU";
   if (/(hdd|하드)/.test(t)) return "HDD";
   if (/(메인보드|motherboard|mainboard|\bmobo\b|보드)/.test(t) || CHIPSET.test(t)) return "MOTHERBOARD";
   if (/(파워서플라이|파워|\bpsu\b|\b\d{3,4}\s*w\b)/.test(t)) return "PSU";
+  if (looksLikeStorage(title)) return "SSD";
   return null;
 }
 
@@ -77,6 +84,7 @@ function normalizePartName(title: string, category: string): string {
     .replace(/(?:www\.)?(?:daangn\.com|karrotmarket\.com|bunjang\.co\.kr)\S*/gi, " ")
     .replace(/(\d[\d,]*)\s*만\s*원/g, " ")
     .replace(/(\d{1,3}(?:,\d{3})+|\d{4,})\s*원/g, " ")
+    .replace(/구매완료|판매완료|예약중|판매중/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
